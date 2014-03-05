@@ -26,7 +26,7 @@ class Interface(object):
         self.mainWindow = StandardWindow("eppDater", "eppDater - System Updater", autodel=True, size=(320, 320))
         self.mainWindow.callback_delete_request_add(lambda o: elementary.exit())
         
-        self.mainBox = Box(self.mainWindow, size_hint_weight=EXPAND_BOTH)
+        self.mainBox = Box(self.mainWindow, size_hint_weight=EXPAND_BOTH, size_hint_align=FILL_BOTH)
         self.mainWindow.resize_object_add(self.mainBox)
 
         #Build our toolbar
@@ -49,14 +49,15 @@ class Interface(object):
         #Add a list of dummy packages for testing purposes
         self.addPackage("test", "1.1.1", "A testing pacakge")
         self.addPackage("burp", "0.2", "Goober's smelly burps")
+        self.addPackage("derp", "1.3", "Big'ol dummy")
 
         scr.content = self.packageList
         scr.show()
 
         #Add a label that shows the package's description
-        self.desFrame = Frame(self.mainWindow, size_hint_weight = EXPAND_BOTH, size_hint_align = FILL_BOTH)
+        self.desFrame = Frame(self.mainWindow, size_hint_weight = (EVAS_HINT_EXPAND, 0.0), size_hint_align = (-1.0, 0.0))
         
-        self.currentDescription = Label(self.mainWindow, size_hint_weight = EXPAND_BOTH)
+        self.currentDescription = Label(self.mainWindow, size_hint_weight = FILL_BOTH)
         self.currentDescription.text = "Select a package for information"
         self.currentDescription.show()
 
