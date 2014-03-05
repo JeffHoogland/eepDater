@@ -18,7 +18,9 @@ from efl.elementary.check import Check
 import sortedlist as sl
 
 EXPAND_BOTH = EVAS_HINT_EXPAND, EVAS_HINT_EXPAND
+EXPAND_HORIZ = EVAS_HINT_EXPAND, 0.0
 FILL_BOTH = EVAS_HINT_FILL, EVAS_HINT_FILL
+FILL_HORIZ = EVAS_HINT_FILL, 0.5
 ALIGN_CENTER = 0.5, 0.5
 
 class Interface(object):
@@ -42,9 +44,9 @@ class Interface(object):
         #Build our sortable list that displays packages that need updates
         scr = Scroller(self.mainWindow, size_hint_weight = EXPAND_BOTH, size_hint_align = FILL_BOTH)
     
-        titles = [("Upgrade", False), ("Package Name", True), ("Version Number", True)]
+        titles = [("Upgrade", False), ("Package", True), ("Version", True)]
 
-        self.packageList = sl.SortedList(scr, titles=titles, size_hint_weight=EXPAND_BOTH, homogeneous=True)
+        self.packageList = sl.SortedList(scr, titles=titles, size_hint_weight=EXPAND_BOTH, homogeneous=False)
 
         #Add a list of dummy packages for testing purposes
         self.addPackage("test", "1.1.1", "A testing pacakge")
@@ -78,14 +80,16 @@ class Interface(object):
         ourCheck.show()
         row.append(ourCheck)
 
-        ourName = Button(self.mainWindow, style="anchor")
+        ourName = Button(self.mainWindow, style="anchor", size_hint_weight=EXPAND_HORIZ,
+                    size_hint_align=FILL_HORIZ)
         ourName.text = packageName
         ourName.data["packageDes"] = packageDescription
         ourName.callback_pressed_add( self.packagePress )
         ourName.show()
         row.append(ourName)
 
-        ourVersion = Label(self.mainWindow)
+        ourVersion = Label(self.mainWindow, size_hint_weight=EXPAND_HORIZ,
+                    size_hint_align=(0.1, 0.5))
         ourVersion.text = versionNumber
         ourVersion.show()
         row.append(ourVersion)

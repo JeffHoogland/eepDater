@@ -78,8 +78,12 @@ class SortedList(Table):
 
         for count, t in enumerate(titles):
             title, sortable = t
-            btn = Button(self, size_hint_weight=EXPAND_HORIZ,
-                size_hint_align=FILL_HORIZ, text=title)
+            if count == 0:
+                btn = Button(self, size_hint_weight=(0.0, 1.0),
+                    size_hint_align=(0.0, 0.5), text=title)
+            else:
+                btn = Button(self, size_hint_weight=EXPAND_HORIZ,
+                    size_hint_align=FILL_HORIZ, text=title)
             btn.callback_clicked_add(sort_btn_cb, count)
             if not sortable:
                 btn.disabled = True
