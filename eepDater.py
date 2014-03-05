@@ -16,6 +16,7 @@ from efl.elementary.scroller import Scroller
 from efl.elementary.check import Check
 
 import sortedlist as sl
+import apt
 
 EXPAND_BOTH = EVAS_HINT_EXPAND, EVAS_HINT_EXPAND
 EXPAND_HORIZ = EVAS_HINT_EXPAND, 0.0
@@ -25,6 +26,10 @@ ALIGN_CENTER = 0.5, 0.5
 
 class Interface(object):
     def __init__( self ):
+        #Store our apt cache object
+        self.cache = apt.Cache()
+    
+        #Build our GUI
         self.mainWindow = StandardWindow("eppDater", "eppDater - System Updater", autodel=True, size=(320, 320))
         self.mainWindow.callback_delete_request_add(lambda o: elementary.exit())
         
@@ -48,10 +53,8 @@ class Interface(object):
 
         self.packageList = sl.SortedList(scr, titles=titles, size_hint_weight=EXPAND_BOTH, homogeneous=False)
 
-        #Add a list of dummy packages for testing purposes
-        self.addPackage("test", "1.1.1", "A testing pacakge")
-        self.addPackage("burp", "0.2", "Goober's smelly burps")
-        self.addPackage("derp", "1.3", "Big'ol dummy")
+        #Get package list
+        self.refreshPackages()
 
         scr.content = self.packageList
         scr.show()
@@ -61,6 +64,7 @@ class Interface(object):
         
         self.currentDescription = Label(self.mainWindow, size_hint_weight = FILL_BOTH)
         self.currentDescription.text = "Select a package for information"
+        self.currentDescription.line_wrap_set(True)
         self.currentDescription.show()
 
         self.desFrame.text = "Description"
@@ -77,6 +81,8 @@ class Interface(object):
         row = []
         
         ourCheck = Check(self.mainWindow)
+        ourCheck.data['packageName'] = packageName
+        ourCheck.callback_changed_add( self.checkChange )
         ourCheck.show()
         row.append(ourCheck)
 
@@ -96,21 +102,58 @@ class Interface(object):
 
         self.packageList.row_pack(row, sort=False)
 
+    def checkChange( self, obj ):
+        packageName = obj.data['packageName']
+        if obj.state_get() == True:
+            self.cache[packageName].mark_upgrade()
+        else:
+            changes = self.cache.get_changes()
+            changes.remove(self.cache[packageName])
+            self.cache.clear()
+            for pac in changes:
+                pac.mark_upgrade()
+        
+        print self.cache.get_changes()
+
     def packagePress( self, obj ):
         self.desFrame.text = "Description - %s" % obj.text
         self.currentDescription.text = obj.data["packageDes"]
 
     def clearPress( self, obj, it ):
-        pass
+        for rw in self.packageList.rows:
+            rw[0].state_set(False)
+            self.checkChange(rw[0])
 
     def selectAllPress( self, obj, it ):
-        pass
+        for rw in self.packageList.rows:
+            rw[0].state_set(True)
+            self.checkChange(rw[0])
 
     def refreshPress( self, obj, it ):
-        pass
+        self.refreshPackages()
 
     def installUpdatesPress( self, obj, it ):
         pass
+
+    def refreshPackages( self ):
+        #Clear out old packages
+        for rw in self.packageList.rows:
+            self.packageList.row_unpack(rw, delete=True)
+        
+        for pak in self.cache:
+            if pak.is_upgradable:
+                ourPackage = pak.name
+                ourVersion = str(pak.candidate).split(":")[3][:-1].replace("'", "")
+                ourDescription = pak.candidate.description
+                #print "Package %s can be upgraded" %ourPackage
+                #print "New version will be %s" %ourVersion
+                #print "Description: %s" %ourDescription
+                self.addPackage(ourPackage, ourVersion, ourDescription)
+
+        #Add a list of dummy packages for testing purposes
+        #self.addPackage("test", "1.1.1", "A testing pacakge")
+        #self.addPackage("burp", "0.2", "Goober's smelly burps")
+        #self.addPackage("derp", "1.3", "Big'ol dummy")
 
     def launch( self ):
         self.mainWindow.show()
