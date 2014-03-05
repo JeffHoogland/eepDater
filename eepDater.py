@@ -113,7 +113,7 @@ class Interface(object):
             for pac in changes:
                 pac.mark_upgrade()
         
-        print self.cache.get_changes()
+        #print self.cache.get_changes()
 
     def packagePress( self, obj ):
         self.desFrame.text = "Description - %s" % obj.text
@@ -133,13 +133,20 @@ class Interface(object):
         self.refreshPackages()
 
     def installUpdatesPress( self, obj, it ):
-        pass
+        self.cache.commit()
+        self.refreshPackages()
 
     def refreshPackages( self ):
         #Clear out old packages
-        for rw in self.packageList.rows:
-            self.packageList.row_unpack(rw, delete=True)
-        
+        storerows = list(self.packageList.rows)
+        for rw in storerows:
+            self.packageList.row_unpack(rw, True)
+
+        print len(self.packageList.rows)
+
+        self.cache.update()
+        self.cache.open(None)        
+
         for pak in self.cache:
             if pak.is_upgradable:
                 ourPackage = pak.name
