@@ -27,6 +27,7 @@ class Interface(object):
         self.mainWindow.callback_delete_request_add(lambda o: elementary.exit())
         
         self.mainBox = Box(self.mainWindow, size_hint_weight=EXPAND_BOTH)
+        self.mainWindow.resize_object_add(self.mainBox)
 
         #Build our toolbar
         self.mainTb = Toolbar(self.mainWindow, homogeneous=False, size_hint_weight=(0.0, 0.0), size_hint_align=(EVAS_HINT_FILL, 0.0))
@@ -39,25 +40,37 @@ class Interface(object):
         self.mainTb.show()
 
         #Build our sortable list that displays packages that need updates
-        scr = Scroller(self.mainWindow, size_hint_weight = EXPAND_BOTH)
+        scr = Scroller(self.mainWindow, size_hint_weight = EXPAND_BOTH, size_hint_align = FILL_BOTH)
     
         titles = [("Upgrade", False), ("Package Name", True), ("Version Number", True)]
 
-        self.packageList = sl.SortedList(scr, titles=titles, size_hint_weight=EXPAND_BOTH,
-            size_hint_align=FILL_BOTH, homogeneous=True)
+        self.packageList = sl.SortedList(scr, titles=titles, size_hint_weight=EXPAND_BOTH, homogeneous=True)
 
         #Add a list of dummy packages for testing purposes
-        self.addPackage("test", "1.1.1")
-        self.addPackage("burp", "0.2")
+        self.addPackage("test", "1.1.1", "A testing pacakge")
+        self.addPackage("burp", "0.2", "Goober's smelly burps")
 
         scr.content = self.packageList
         scr.show()
 
+        #Add a label that shows the package's description
+        self.desFrame = Frame(self.mainWindow, size_hint_weight = EXPAND_BOTH, size_hint_align = FILL_BOTH)
+        
+        self.currentDescription = Label(self.mainWindow, size_hint_weight = EXPAND_BOTH)
+        self.currentDescription.text = "Select a package for information"
+        self.currentDescription.show()
+
+        self.desFrame.text = "Description"
+        self.desFrame.content = self.currentDescription
+        self.desFrame.show()
+
+        #Add all of our objects to the window
         self.mainBox.pack_end(self.mainTb)
-        self.mainBox.pack_end(self.packageList)
+        self.mainBox.pack_end(scr)
+        self.mainBox.pack_end(self.desFrame)
         self.mainBox.show()
 
-    def addPackage( self, packageName, versionNumber ):
+    def addPackage( self, packageName, versionNumber, packageDescription ):
         row = []
         
         ourCheck = Check(self.mainWindow)
@@ -66,6 +79,8 @@ class Interface(object):
 
         ourName = Button(self.mainWindow, style="anchor")
         ourName.text = packageName
+        ourName.data["packageDes"] = packageDescription
+        ourName.callback_pressed_add( self.packagePress )
         ourName.show()
         row.append(ourName)
 
@@ -75,6 +90,10 @@ class Interface(object):
         row.append(ourVersion)
 
         self.packageList.row_pack(row, sort=False)
+
+    def packagePress( self, obj ):
+        self.desFrame.text = "Description - %s" % obj.text
+        self.currentDescription.text = obj.data["packageDes"]
 
     def clearPress( self, obj, it ):
         pass
