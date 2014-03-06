@@ -28,6 +28,7 @@ class Interface(object):
     def __init__( self ):
         #Store our apt cache object
         self.cache = apt.Cache()
+        self.packagesToUpdate = {}
     
         #Build our GUI
         self.mainWindow = StandardWindow("eppDater", "eppDater - System Updater", autodel=True, size=(320, 320))
@@ -49,7 +50,7 @@ class Interface(object):
         #Build our sortable list that displays packages that need updates
         scr = Scroller(self.mainWindow, size_hint_weight = EXPAND_BOTH, size_hint_align = FILL_BOTH)
     
-        titles = [("Upgrade", False), ("Package", True), ("Version", True)]
+        titles = [("Upgrade", True), ("Package", True), ("Version", True)]
 
         self.packageList = sl.SortedList(scr, titles=titles, size_hint_weight=EXPAND_BOTH, homogeneous=False)
 
@@ -100,20 +101,36 @@ class Interface(object):
         ourVersion.show()
         row.append(ourVersion)
 
+        self.packagesToUpdate[packageName] = {'check':ourCheck, 'selected':False}
         self.packageList.row_pack(row, sort=False)
 
     def checkChange( self, obj ):
         packageName = obj.data['packageName']
+        ourPackage = self.cache[packageName]
         if obj.state_get() == True:
-            self.cache[packageName].mark_upgrade()
+            ourPackage.mark_upgrade()
+            self.packagesToUpdate[packageName]['selected'] = True
         else:
+            self.packagesToUpdate[packageName]['selected'] = False
+
             changes = self.cache.get_changes()
-            changes.remove(self.cache[packageName])
             self.cache.clear()
-            for pac in changes:
-                pac.mark_upgrade()
-        
-        #print self.cache.get_changes()
+            for ourPackage in changes:
+                markupgrade = True
+                if self.packagesToUpdate[ourPackage.name]['selected'] == False:
+                    markupgrade = False
+
+                if markupgrade:
+                    ourPackage.mark_upgrade()
+
+        for pak in self.packagesToUpdate:
+            self.packagesToUpdate[pak]['check'].state_set(False)
+            self.packagesToUpdate[pak]['check'].text = ""
+
+        for pak in self.cache.get_changes():
+            self.packagesToUpdate[pak.name]['check'].state_set(True)
+            if self.packagesToUpdate[pak.name]['selected'] == False:
+                self.packagesToUpdate[pak.name]['check'].text = "dep"
 
     def packagePress( self, obj ):
         self.desFrame.text = "Description - %s" % obj.text
@@ -143,6 +160,7 @@ class Interface(object):
             self.packageList.row_unpack(rw, True)
 
         print len(self.packageList.rows)
+        self.packagesToUpdate.clear()
 
         self.cache.update()
         self.cache.open(None)        
@@ -152,9 +170,6 @@ class Interface(object):
                 ourPackage = pak.name
                 ourVersion = str(pak.candidate).split(":")[3][:-1].replace("'", "")
                 ourDescription = pak.candidate.description
-                #print "Package %s can be upgraded" %ourPackage
-                #print "New version will be %s" %ourVersion
-                #print "Description: %s" %ourDescription
                 self.addPackage(ourPackage, ourVersion, ourDescription)
 
         #Add a list of dummy packages for testing purposes
