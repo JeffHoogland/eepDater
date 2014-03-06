@@ -14,6 +14,17 @@ from efl.elementary.frame import Frame
 from efl.elementary.label import Label
 from efl.elementary.scroller import Scroller
 from efl.elementary.check import Check
+from efl.elementary.progressbar import Progressbar
+from efl.elementary.flip import Flip, ELM_FLIP_ROTATE_X_CENTER_AXIS, \
+    ELM_FLIP_ROTATE_Y_CENTER_AXIS, ELM_FLIP_ROTATE_XZ_CENTER_AXIS, \
+    ELM_FLIP_ROTATE_YZ_CENTER_AXIS, ELM_FLIP_CUBE_LEFT, ELM_FLIP_CUBE_RIGHT, \
+    ELM_FLIP_CUBE_UP, ELM_FLIP_CUBE_DOWN, ELM_FLIP_PAGE_LEFT, \
+    ELM_FLIP_PAGE_RIGHT, ELM_FLIP_PAGE_UP, ELM_FLIP_PAGE_DOWN, \
+    ELM_FLIP_DIRECTION_UP, ELM_FLIP_DIRECTION_DOWN, \
+    ELM_FLIP_DIRECTION_LEFT, ELM_FLIP_DIRECTION_RIGHT, \
+    ELM_FLIP_INTERACTION_NONE, ELM_FLIP_INTERACTION_ROTATE, \
+    ELM_FLIP_INTERACTION_CUBE, ELM_FLIP_INTERACTION_PAGE
+import efl.ecore as ecore
 
 import sortedlist as sl
 import apt
@@ -33,49 +44,30 @@ class Interface(object):
         #Build our GUI
         self.mainWindow = StandardWindow("eppDater", "eppDater - System Updater", autodel=True, size=(320, 320))
         self.mainWindow.callback_delete_request_add(lambda o: elementary.exit())
+
+        self.flipBox = Box(self.mainWindow, size_hint_weight=EXPAND_BOTH, size_hint_align=FILL_BOTH)
+        self.flipBox.show()
+
+        self.fl = fl = Flip(self.mainWindow, size_hint_weight=EXPAND_BOTH, size_hint_align=FILL_BOTH)
+        self.flipBox.pack_end(fl)
+        fl.show()
         
+        self.loadBox = Box(self.mainWindow, size_hint_weight=EXPAND_BOTH, size_hint_align=FILL_BOTH)
+        self.loadBox.show()
+
+        pb7 = Progressbar(self.mainWindow, style="wheel", text="Style: wheel", pulse_mode=True,
+                    size_hint_weight=EXPAND_BOTH, size_hint_align=FILL_HORIZ)
+        self.loadBox.pack_end(pb7)
+        pb7.pulse(True)
+        pb7.show()
+
+
         self.mainBox = Box(self.mainWindow, size_hint_weight=EXPAND_BOTH, size_hint_align=FILL_BOTH)
-        self.mainWindow.resize_object_add(self.mainBox)
+        self.mainWindow.resize_object_add(self.flipBox)
 
-        #Build our toolbar
-        self.mainTb = Toolbar(self.mainWindow, homogeneous=False, size_hint_weight=(0.0, 0.0), size_hint_align=(EVAS_HINT_FILL, 0.0))
-        
-        self.mainTb.item_append("close", "Clear", self.clearPress)
-        self.mainTb.item_append("apps", "Select All", self.selectAllPress)
-        self.mainTb.item_append("refresh", "Refresh", self.refreshPress)
-        self.mainTb.item_append("arrow_down", "Apply", self.installUpdatesPress)
+        fl.part_content_set("back", self.loadBox)
+        fl.part_content_set("front", self.mainBox)
 
-        self.mainTb.show()
-
-        #Build our sortable list that displays packages that need updates
-        scr = Scroller(self.mainWindow, size_hint_weight = EXPAND_BOTH, size_hint_align = FILL_BOTH)
-    
-        titles = [("Upgrade", True), ("Package", True), ("Version", True)]
-
-        self.packageList = sl.SortedList(scr, titles=titles, size_hint_weight=EXPAND_BOTH, homogeneous=False)
-
-        #Get package list
-        self.refreshPackages()
-
-        scr.content = self.packageList
-        scr.show()
-
-        #Add a label that shows the package's description
-        self.desFrame = Frame(self.mainWindow, size_hint_weight = (EVAS_HINT_EXPAND, 0.0), size_hint_align = (-1.0, 0.0))
-        
-        self.currentDescription = Label(self.mainWindow, size_hint_weight = FILL_BOTH)
-        self.currentDescription.text = "Select a package for information"
-        self.currentDescription.line_wrap_set(True)
-        self.currentDescription.show()
-
-        self.desFrame.text = "Description"
-        self.desFrame.content = self.currentDescription
-        self.desFrame.show()
-
-        #Add all of our objects to the window
-        self.mainBox.pack_end(self.mainTb)
-        self.mainBox.pack_end(scr)
-        self.mainBox.pack_end(self.desFrame)
         self.mainBox.show()
 
     def addPackage( self, packageName, versionNumber, packageDescription ):
@@ -179,6 +171,48 @@ class Interface(object):
 
     def launch( self ):
         self.mainWindow.show()
+        self.buildmaingui()
+
+    def buildmaingui( self ):
+        #Build our toolbar
+        self.mainTb = Toolbar(self.mainWindow, homogeneous=False, size_hint_weight=(0.0, 0.0), size_hint_align=(EVAS_HINT_FILL, 0.0))
+        
+        self.mainTb.item_append("close", "Clear", self.clearPress)
+        self.mainTb.item_append("apps", "Select All", self.selectAllPress)
+        self.mainTb.item_append("refresh", "Refresh", self.refreshPress)
+        self.mainTb.item_append("arrow_down", "Apply", self.installUpdatesPress)
+
+        self.mainTb.show()
+
+        #Build our sortable list that displays packages that need updates
+        scr = Scroller(self.mainWindow, size_hint_weight = EXPAND_BOTH, size_hint_align = FILL_BOTH)
+    
+        titles = [("Upgrade", True), ("Package", True), ("Version", True)]
+
+        self.packageList = sl.SortedList(scr, titles=titles, size_hint_weight=EXPAND_BOTH, homogeneous=False)
+
+        #Get package list
+        self.refreshPackages()
+
+        scr.content = self.packageList
+        scr.show()
+
+        #Add a label that shows the package's description
+        self.desFrame = Frame(self.mainWindow, size_hint_weight = (EVAS_HINT_EXPAND, 0.0), size_hint_align = (-1.0, 0.0))
+        
+        self.currentDescription = Label(self.mainWindow, size_hint_weight = FILL_BOTH)
+        self.currentDescription.text = "Select a package for information"
+        self.currentDescription.line_wrap_set(True)
+        self.currentDescription.show()
+
+        self.desFrame.text = "Description"
+        self.desFrame.content = self.currentDescription
+        self.desFrame.show()
+
+        #Add all of our objects to the window
+        self.mainBox.pack_end(self.mainTb)
+        self.mainBox.pack_end(scr)
+        self.mainBox.pack_end(self.desFrame)
 
 if __name__ == "__main__":
     elementary.init()
