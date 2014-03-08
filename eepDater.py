@@ -120,9 +120,10 @@ class Interface(object):
             self.packagesToUpdate[pak]['check'].text = ""
 
         for pak in self.cache.get_changes():
-            self.packagesToUpdate[pak.name]['check'].state_set(True)
-            if self.packagesToUpdate[pak.name]['selected'] == False:
-                self.packagesToUpdate[pak.name]['check'].text = "dep"
+            if pak.name in self.packagesToUpdate:
+                self.packagesToUpdate[pak.name]['check'].state_set(True)
+                if self.packagesToUpdate[pak.name]['selected'] == False:
+                    self.packagesToUpdate[pak.name]['check'].text = "dep"
 
     def packagePress( self, obj ):
         self.desFrame.text = "Description - %s" % obj.text
