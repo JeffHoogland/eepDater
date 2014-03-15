@@ -28,6 +28,8 @@ import efl.ecore as ecore
 
 import sortedlist as sl
 import apt
+import threading
+import Queue
 
 EXPAND_BOTH = EVAS_HINT_EXPAND, EVAS_HINT_EXPAND
 EXPAND_HORIZ = EVAS_HINT_EXPAND, 0.0
@@ -40,6 +42,14 @@ class Interface(object):
         #Store our apt cache object
         self.cache = apt.Cache()
         self.packagesToUpdate = {}
+
+        #Threads for loading screens
+        self.needFlip = False
+
+        self.Q1 = Queue.Queue()
+
+        self.t = threading.Thread(name='queueIt', target=self.ourQueue)
+        self.t.start()
     
         #Build our GUI
         self.mainWindow = StandardWindow("eppDater", "eppDater - System Updater", autodel=True, size=(320, 320))
@@ -68,7 +78,27 @@ class Interface(object):
         fl.part_content_set("back", self.loadBox)
         fl.part_content_set("front", self.mainBox)
 
+        self.ourLoop = ecore.timer_add(0.5, self.update)
+
         self.mainBox.show()
+
+    def update( self ):
+        if self.needFlip:
+            self.fl.go(ELM_FLIP_ROTATE_YZ_CENTER_AXIS)
+            self.needFlip = False
+
+        return 1
+
+    def ourQueue( self ):
+        while True:
+            # wait here until an item in the queue is present
+            ourCb = self.Q1.get()
+
+            ourCb()
+
+    def queueIt( self, ourFunction ):
+        self.needFlip = True
+        self.Q1.put(ourFunction)
 
     def addPackage( self, packageName, versionNumber, packageDescription ):
         row = []
@@ -130,6 +160,7 @@ class Interface(object):
         self.currentDescription.text = obj.data["packageDes"]
 
     def clearPress( self, obj, it ):
+        it.selected_set(False)
         for rw in self.packageList.rows:
             rw[0].state_set(False)
             self.checkChange(rw[0])
@@ -138,11 +169,17 @@ class Interface(object):
         for rw in self.packageList.rows:
             rw[0].state_set(True)
             self.checkChange(rw[0])
+        it.selected_set(False)
 
     def refreshPress( self, obj, it ):
-        self.refreshPackages()
+        it.selected_set(False)
+        self.queueIt(self.refreshPackages)
 
     def installUpdatesPress( self, obj, it ):
+        it.selected_set(False)
+        self.queueIt( self.installUpdates )
+
+    def installUpdates( self ):
         self.cache.commit()
         self.refreshPackages()
 
@@ -164,6 +201,9 @@ class Interface(object):
                 ourVersion = str(pak.candidate).split(":")[3][:-1].replace("'", "")
                 ourDescription = pak.candidate.description
                 self.addPackage(ourPackage, ourVersion, ourDescription)
+
+        self.needFlip = True
+        print "Derp"
 
         #Add a list of dummy packages for testing purposes
         #self.addPackage("test", "1.1.1", "A testing pacakge")
@@ -193,7 +233,7 @@ class Interface(object):
         self.packageList = sl.SortedList(scr, titles=titles, size_hint_weight=EXPAND_BOTH, homogeneous=False)
 
         #Get package list
-        self.refreshPackages()
+        self.queueIt(self.refreshPackages)
 
         scr.content = self.packageList
         scr.show()
