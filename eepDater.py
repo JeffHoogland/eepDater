@@ -55,6 +55,7 @@ class Interface(object):
         self.mainWindow = StandardWindow("eppDater", "eppDater - System Updater", autodel=True, size=(320, 320))
         self.mainWindow.callback_delete_request_add(lambda o: elementary.exit())
 
+        #Our flip object which has a load screen on one side and the GUI on the other
         self.flipBox = Box(self.mainWindow, size_hint_weight=EXPAND_BOTH, size_hint_align=FILL_BOTH)
         self.flipBox.show()
 
@@ -62,8 +63,14 @@ class Interface(object):
         self.flipBox.pack_end(fl)
         fl.show()
         
+        #Build our loading screen
         self.loadBox = Box(self.mainWindow, size_hint_weight=EXPAND_BOTH, size_hint_align=FILL_BOTH)
         self.loadBox.show()
+
+        loadLable = Label(self.mainWindow, size_hint_weight=EXPAND_BOTH, size_hint_align=FILL_HORIZ)
+        loadLable.text = "<b>Processing</b>"
+        loadLable.show()
+        self.loadBox.pack_end(loadLable)
 
         pb7 = Progressbar(self.mainWindow, style="wheel", text="Style: wheel", pulse_mode=True,
                     size_hint_weight=EXPAND_BOTH, size_hint_align=FILL_HORIZ)
@@ -71,6 +78,12 @@ class Interface(object):
         pb7.pulse(True)
         pb7.show()
 
+        self.loadStatus = ""
+
+        self.statusLabel = statusLable = Label(self.mainWindow, size_hint_weight=EXPAND_BOTH, size_hint_align=FILL_HORIZ)
+        statusLable.text = self.loadStatus
+        statusLable.show()
+        self.loadBox.pack_end(statusLable)
 
         self.mainBox = Box(self.mainWindow, size_hint_weight=EXPAND_BOTH, size_hint_align=FILL_BOTH)
         self.mainWindow.resize_object_add(self.flipBox)
@@ -78,11 +91,27 @@ class Interface(object):
         fl.part_content_set("back", self.loadBox)
         fl.part_content_set("front", self.mainBox)
 
+        self.clearPackages = False
+        self.packageQueue = []
+
         self.ourLoop = ecore.timer_add(0.5, self.update)
 
         self.mainBox.show()
 
     def update( self ):
+        self.statusLabel.text = self.loadStatus
+
+        if self.clearPackages:
+            storerows = list(self.packageList.rows)
+            for rw in storerows:
+                self.packageList.row_unpack(rw, True)
+
+            for p in self.packageQueue:
+                self.addPackage(p[0], p[1], p[2])
+            
+            self.packageQueue = []
+            self.clearPackages = False
+
         if self.needFlip:
             self.fl.go(ELM_FLIP_ROTATE_YZ_CENTER_AXIS)
             self.needFlip = False
@@ -180,16 +209,12 @@ class Interface(object):
         self.queueIt( self.installUpdates )
 
     def installUpdates( self ):
+        self.loadStatus = "<i>Installing selected pacakges...</i>"
         self.cache.commit()
         self.refreshPackages()
 
     def refreshPackages( self ):
-        #Clear out old packages
-        storerows = list(self.packageList.rows)
-        for rw in storerows:
-            self.packageList.row_unpack(rw, True)
-
-        print len(self.packageList.rows)
+        self.loadStatus = "<i>Refreshing package lists...</i>"
         self.packagesToUpdate.clear()
 
         self.cache.update()
@@ -200,15 +225,10 @@ class Interface(object):
                 ourPackage = pak.name
                 ourVersion = str(pak.candidate).split(":")[3][:-1].replace("'", "")
                 ourDescription = pak.candidate.description
-                self.addPackage(ourPackage, ourVersion, ourDescription)
+                self.packageQueue.append([ourPackage, ourVersion, ourDescription])
 
+        self.clearPackages = True
         self.needFlip = True
-        print "Derp"
-
-        #Add a list of dummy packages for testing purposes
-        #self.addPackage("test", "1.1.1", "A testing pacakge")
-        #self.addPackage("burp", "0.2", "Goober's smelly burps")
-        #self.addPackage("derp", "1.3", "Big'ol dummy")
 
     def launch( self ):
         self.mainWindow.show()
