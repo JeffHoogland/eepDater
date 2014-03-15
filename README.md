@@ -1,7 +1,6 @@
 eepDater - A GUI system updater for apt-get based systems written in Elementary and Python
 
 TODO:
-  Work out details with packages that require other upgrades when checked/unchecked
-  Add loading animation so the GUI isn't just "frozen"
+  Features! Real time status of what apt is doing during loading screens
 
 Started by: Jeff Hoogland on 3/04/2014
