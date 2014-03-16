@@ -264,7 +264,7 @@ class Interface(object):
         titles = [("Upgrade", True), ("Package", True), ("Version", True)]
 
         self.packageList = sl.SortedList(scr, titles=titles, homogeneous=False,
-                                         size_hint_weight=EXPAND_BOTH)
+                                         size_hint_weight=EXPAND_HORIZ)
 
         #Get package list
         self.queueIt(self.refreshPackages)
