@@ -37,20 +37,56 @@ FILL_BOTH = EVAS_HINT_FILL, EVAS_HINT_FILL
 FILL_HORIZ = EVAS_HINT_FILL, 0.5
 ALIGN_CENTER = 0.5, 0.5
 
+
+class ThreadedAPT(object):
+    def __init__( self ):
+        self.cache = apt.Cache()
+        self.commandQueue = Queue.Queue()
+        self.replyQueue = Queue.Queue()
+        self.doneCB = None
+
+        # start the working thread
+        self.t = threading.Thread(target=self.threadFunc)
+        self.t.start()
+
+        # add a timer to check the data returned by the worker thread
+        self.timer = ecore.Timer(0.1, self.checkReplyQueue)
+
+    def run( self, action, doneCB=None ):
+        self.doneCB = doneCB
+        self.commandQueue.put(getattr(self, action))
+
+    def checkReplyQueue( self ):
+        if not self.replyQueue.empty():
+            result = self.replyQueue.get_nowait()
+            if callable(self.doneCB):
+                self.doneCB(result)
+        return True
+
+    # all the member below this point run in the thread
+    def threadFunc( self ):
+        while True:
+            # wait here until an item in the queue is present
+            func = self.commandQueue.get()
+            func()
+
+    def refreshPackages( self ):
+        self.cache.update()
+        self.cache.open(None)
+
+        upgradables = [pak for pak in self.cache if pak.is_upgradable]
+        self.replyQueue.put(upgradables)
+
+    def installUpdates( self ):
+        self.cache.commit()
+        self.replyQueue.put(True)
+
+
 class Interface(object):
     def __init__( self ):
-        #Store our apt cache object
-        self.cache = apt.Cache()
         self.packagesToUpdate = {}
+        self.apt = ThreadedAPT()
 
-        #Threads for loading screens
-        self.needFlip = False
-
-        self.Q1 = Queue.Queue()
-
-        self.t = threading.Thread(name='queueIt', target=self.ourQueue)
-        self.t.start()
-    
         #Build our GUI
         self.mainWindow = StandardWindow("eepDater", "eepDater - System Updater",
                                          autodel=True, size=(320, 320))
@@ -84,12 +120,9 @@ class Interface(object):
         pb7.pulse(True)
         pb7.show()
 
-        self.loadStatus = ""
-
         self.statusLabel = statusLable = Label(self.mainWindow,
                                                size_hint_weight=EXPAND_BOTH,
                                                size_hint_align=FILL_HORIZ)
-        statusLable.text = self.loadStatus
         statusLable.show()
         self.loadBox.pack_end(statusLable)
 
@@ -100,43 +133,7 @@ class Interface(object):
         fl.part_content_set("back", self.loadBox)
         fl.part_content_set("front", self.mainBox)
 
-        self.clearPackages = False
-        self.packageQueue = []
-
-        self.ourLoop = ecore.timer_add(0.5, self.update)
-
         self.mainBox.show()
-
-    def update( self ):
-        self.statusLabel.text = self.loadStatus
-
-        if self.clearPackages:
-            storerows = list(self.packageList.rows)
-            for rw in storerows:
-                self.packageList.row_unpack(rw, True)
-
-            for p in self.packageQueue:
-                self.addPackage(p[0], p[1], p[2])
-            
-            self.packageQueue = []
-            self.clearPackages = False
-
-        if self.needFlip:
-            self.fl.go(ELM_FLIP_ROTATE_YZ_CENTER_AXIS)
-            self.needFlip = False
-
-        return 1
-
-    def ourQueue( self ):
-        while True:
-            # wait here until an item in the queue is present
-            ourCb = self.Q1.get()
-
-            ourCb()
-
-    def queueIt( self, ourFunction ):
-        self.needFlip = True
-        self.Q1.put(ourFunction)
 
     def addPackage( self, packageName, versionNumber, packageDescription ):
         row = []
@@ -167,15 +164,15 @@ class Interface(object):
 
     def checkChange( self, obj ):
         packageName = obj.data['packageName']
-        ourPackage = self.cache[packageName]
+        ourPackage = self.apt.cache[packageName]
         if obj.state_get() == True:
             ourPackage.mark_upgrade()
             self.packagesToUpdate[packageName]['selected'] = True
         else:
             self.packagesToUpdate[packageName]['selected'] = False
 
-            changes = self.cache.get_changes()
-            self.cache.clear()
+            changes = self.apt.cache.get_changes()
+            self.apt.cache.clear()
             for ourPackage in changes:
                 markupgrade = True
                 if self.packagesToUpdate[ourPackage.name]['selected'] == False:
@@ -188,7 +185,7 @@ class Interface(object):
             self.packagesToUpdate[pak]['check'].state_set(False)
             self.packagesToUpdate[pak]['check'].text = ""
 
-        for pak in self.cache.get_changes():
+        for pak in self.apt.cache.get_changes():
             if pak.name in self.packagesToUpdate:
                 self.packagesToUpdate[pak.name]['check'].state_set(True)
                 if self.packagesToUpdate[pak.name]['selected'] == False:
@@ -212,33 +209,43 @@ class Interface(object):
 
     def refreshPress( self, obj, it ):
         it.selected_set(False)
-        self.queueIt(self.refreshPackages)
+        self.refreshPackages()
 
     def installUpdatesPress( self, obj, it ):
         it.selected_set(False)
-        self.queueIt( self.installUpdates )
+        self.installUpdates()
 
     def installUpdates( self ):
-        self.loadStatus = "<i>Installing selected pacakges...</i>"
-        self.cache.commit()
-        self.refreshPackages()
+        self.statusLabel.text = "<i>Installing selected pacakges...</i>"
+        self.fl.go(ELM_FLIP_ROTATE_YZ_CENTER_AXIS)
+        self.apt.run("installUpdates", self.installUpdatesDone)
 
-    def refreshPackages( self ):
-        self.loadStatus = "<i>Refreshing package lists...</i>"
+    def installUpdatesDone( self, result ):
+        self.statusLabel.text = "<i>Refreshing package lists...</i>"
+        self.apt.run("refreshPackages", self.refreshPackagesDone)
         self.packagesToUpdate.clear()
 
-        self.cache.update()
-        self.cache.open(None)        
+    def refreshPackages( self ):
+        self.statusLabel.text = "<i>Refreshing package lists...</i>"
+        self.fl.go(ELM_FLIP_ROTATE_YZ_CENTER_AXIS)
 
-        for pak in self.cache:
-            if pak.is_upgradable:
-                ourPackage = pak.name
-                ourVersion = str(pak.candidate).split(":")[3][:-1].replace("'", "")
-                ourDescription = pak.candidate.description
-                self.packageQueue.append([ourPackage, ourVersion, ourDescription])
+        self.apt.run("refreshPackages", self.refreshPackagesDone)
+        self.packagesToUpdate.clear()
 
-        self.clearPackages = True
-        self.needFlip = True
+    def refreshPackagesDone( self, upgradables ):
+        # clear the packages list
+        storerows = list(self.packageList.rows)
+        for row in storerows:
+            self.packageList.row_unpack(row, True)
+
+        # populate the packages list
+        for pak in upgradables:
+            ourPackage = pak.name
+            ourVersion = str(pak.candidate).split(":")[3][:-1].replace("'", "")
+            ourDescription = pak.candidate.description
+            self.addPackage(ourPackage, ourVersion, ourDescription)
+
+        self.fl.go(ELM_FLIP_ROTATE_YZ_CENTER_AXIS)
 
     def launch( self ):
         self.mainWindow.show()
@@ -267,7 +274,7 @@ class Interface(object):
                                          size_hint_weight=EXPAND_HORIZ)
 
         #Get package list
-        self.queueIt(self.refreshPackages)
+        self.refreshPackages()
 
         scr.content = self.packageList
         scr.show()
