@@ -29,6 +29,9 @@ import efl.ecore as ecore
 
 import sortedlist as sl
 import apt
+from apt.progress.base import OpProgress as BaseOpProgress
+from apt.progress.base import AcquireProgress as BaseAcquireProgress
+from apt.progress.base import InstallProgress as BaseInstallProgress
 import threading
 import Queue
 
@@ -39,58 +42,192 @@ FILL_HORIZ = EVAS_HINT_FILL, 0.5
 ALIGN_CENTER = 0.5, 0.5
 
 
-class ThreadedAPT(object):
-    def __init__( self ):
-        self.cache = apt.Cache()
-        self.commandQueue = Queue.Queue()
-        self.replyQueue = Queue.Queue()
-        self.doneCB = None
+class operationProgress(BaseOpProgress):
+    """Display the progress of operations such as opening the cache."""
 
-        # start the working thread
-        self.t = threading.Thread(target=self.threadFunc)
-        self.t.start()
+    def update(self, percent=None):
+        """Called periodically to update the user interface."""
+        BaseOpProgress.update(self, percent)
+        print("UPDATE_OP op:%s  subop:%s  percent:%.1f" % (
+              self.op, self.subop, self.percent))
+
+    def done(self):
+        """Called once an operation has been completed."""
+        BaseOpProgress.done(self)
+        print("DONE_OP")
+
+
+class updateProgress(BaseAcquireProgress):
+    """Called by the apt thread while updating packages cache info"""
+    def __init__(self):
+        BaseAcquireProgress.__init__(self)
+
+    def start(self):
+        BaseAcquireProgress.start(self)
+        print("### START UPDATE ###")
+
+    def stop(self):
+        BaseAcquireProgress.stop(self)
+        print("### UPDATE DONE ###")
+
+    def pulse(self, owner):
+        BaseAcquireProgress.pulse(self, owner)
+        print("PULSE items:%d/%d bytes:%.1f/%.1f rate:%.1f elapsed:%d" % (
+              self.current_items, self.total_items, 
+              self.current_bytes, self.total_bytes,
+              self.current_cps, self.elapsed_time))
+        return True # False to cancel the job
+
+    def ims_hit(self, item):
+        """ Invoked when an item is confirmed to be up-to-date """
+        print("IMS_HIT", item.description)
+    
+    def fetch(self, item):
+        """ Invoked when some of the item's data is fetched. """
+        print("FETCH", item.description)
+
+    def done(self, item):
+        """ Invoked when an item is successfully and completely fetched. """
+        print("DONE", item.description)
+
+    def fail(self, item):
+        """ Invoked when the process of fetching an item encounters an error. """
+        print("FAIL", item.description)
+
+
+class downloadProgress(BaseAcquireProgress):
+    """Called by the apt thread while downloading pakages"""
+    def __init__(self):
+        BaseAcquireProgress.__init__(self)
+
+    def start(self):
+        """Invoked when the Acquire process starts running."""
+        BaseAcquireProgress.start(self)
+        print("### START DOWNLOAD ###")
+
+    def stop(self):
+        """Invoked when the Acquire process stops running."""
+        BaseAcquireProgress.stop(self)
+        print("### DOWNLOAD DONE ###")
+
+    def pulse(self, owner):
+        """Periodically invoked while the Acquire process is underway."""
+        BaseAcquireProgress.stop(self, owner)
+        print("PULSE  items:%d/%d  bytes:%.1f/%.1f  rate:%.1f  elapsed:%d" % (
+              self.current_items, self.total_items, 
+              self.current_bytes, self.total_bytes,
+              self.current_cps, self.elapsed_time))
+        return True # False to cancel the job
+
+    def ims_hit(self, item):
+        """Invoked when an item is confirmed to be up-to-date"""
+        print("IMS_HIT", item.description)
+    
+    def fetch(self, item):
+        """Invoked when some of the item's data is fetched."""
+        print("FETCH", item.description)
+
+    def done(self, item):
+        """Invoked when an item is successfully and completely fetched."""
+        print("DONE", item.description)
+
+    def fail(self, item):
+        """Invoked when the process of fetching an item encounters an error."""
+        print("FAIL", item.description)
+
+
+class installProgress(BaseInstallProgress):
+    """Called by the apt thread while installing pakages"""
+    def __init__(self):
+        BaseInstallProgress.__init__(self)
+
+    def conffile(current, new):
+        """Called when a conffile question from dpkg is detected."""
+        BaseInstallProgress.conffile(self, current, new)
+        print("CONFFILE", current, new)
+
+    def start_update(self):
+        """(Abstract) Start update."""
+        print("START_UPDATE")
+
+    def finish_update(self):
+        """(Abstract) Called when update has finished."""
+        print("FINISH_UPDATE")
+
+    def error(self, pkg, errormsg):
+        """(Abstract) Called when a error is detected during the install."""
+        print("ERROR_UPDATE", pkg, errormsg)
+
+    def status_change(self, pkg, percent, status):
+        """(Abstract) Called when the APT status changed."""
+        print("STATUS_CHANGE", pkg, percent, status)
+
+    def processing(self, pkg, stage):
+        """(Abstract) Sent just before a processing stage starts."""
+        print("PROCESSING", pkg, stage)
+
+
+class ThreadedAPT(object):
+    def __init__(self):
+        # the accessible apt cache object
+        self.cache = apt.Cache()
+
+        # private stuff
+        self._commandQueue = Queue.Queue()
+        self._replyQueue = Queue.Queue()
+        self._doneCB = None
+
+        # instances of the classes used to report progress
+        self._op_progress = operationProgress()
+        self._update_progress = updateProgress()
+        self._download_progress = downloadProgress()
+        self._install_progress = installProgress()
 
         # add a timer to check the data returned by the worker thread
-        self.timer = ecore.Timer(0.1, self.checkReplyQueue)
+        self._timer = ecore.Timer(0.1, self.checkReplyQueue)
 
-    def run( self, action, doneCB=None ):
-        self.doneCB = doneCB
-        self.commandQueue.put(getattr(self, action))
+        # start the working thread
+        threading.Thread(target=self.threadFunc).start()
 
-    def shutdown( self ):
-        self.commandQueue.put('QUIT')
+    def run(self, action, doneCB=None):
+        self._doneCB = doneCB
+        self._commandQueue.put(getattr(self, action))
 
-    def checkReplyQueue( self ):
-        if not self.replyQueue.empty():
-            result = self.replyQueue.get_nowait()
-            if callable(self.doneCB):
-                self.doneCB(result)
+    def shutdown(self):
+        self._timer.delete()
+        self._commandQueue.put('QUIT')
+
+    def checkReplyQueue(self):
+        if not self._replyQueue.empty():
+            result = self._replyQueue.get_nowait()
+            if callable(self._doneCB):
+                self._doneCB(result)
         return True
 
     # all the member below this point run in the thread
-    def threadFunc( self ):
+    def threadFunc(self):
         while True:
             # wait here until an item in the queue is present
-            func = self.commandQueue.get()
+            func = self._commandQueue.get()
             if callable(func):
                 func()
             elif func == 'QUIT':
                 break
 
-    def refreshPackages( self ):
-        self.cache.update()
-        self.cache.open(None)
+    def refreshPackages(self):
+        self.cache.update(self._update_progress)
+        self.cache.open(self._op_progress)
 
         upgradables = [pak for pak in self.cache if pak.is_upgradable]
-        self.replyQueue.put(upgradables)
+        self._replyQueue.put(upgradables)
 
-    def installUpdates( self ):
-        self.cache.commit()
-        self.replyQueue.put(True)
+    def installUpdates(self):
+        self.cache.commit(self._download_progress, self._install_progress)
+        self._replyQueue.put(True)
 
 
 class MainWin(StandardWindow):
-    def __init__( self, app ):
+    def __init__(self, app):
         # create the main window
         StandardWindow.__init__(self, "eepDater", "eepDater - System Updater",
                                 autodel=True, size=(320, 320))
@@ -184,31 +321,31 @@ class MainWin(StandardWindow):
 
         return box
 
-    def clearPressed( self, obj, it ):
+    def clearPressed(self, obj, it):
         it.selected = False
         for rw in self.packageList.rows:
             rw[0].state = False
             self.app.checkChange(rw[0])
 
-    def selectAllPressed( self, obj, it ):
+    def selectAllPressed(self, obj, it):
         it.selected = False
         for rw in self.packageList.rows:
             rw[0].state = True
             self.app.checkChange(rw[0])
 
-    def refreshPressed( self, obj, it ):
+    def refreshPressed(self, obj, it):
         it.selected = False
         self.app.refreshPackages()
 
-    def installUpdatesPressed( self, obj, it ):
+    def installUpdatesPressed(self, obj, it):
         it.selected = False
         self.app.installUpdates()
 
-    def packagePressed( self, obj ):
+    def packagePressed(self, obj):
         self.desFrame.text = "Description - %s" % obj.text
         self.currentDescription.text = obj.data["packageDes"]
 
-    def addPackage( self, pak ):
+    def addPackage(self, pak):
         row = []
 
         ourCheck = Check(self)
@@ -253,12 +390,12 @@ class MainWin(StandardWindow):
 
 
 class eepDater(object):
-    def __init__( self ):
+    def __init__(self):
         self.packagesToUpdate = {}
         self.apt = ThreadedAPT()
         self.win = MainWin(self)
 
-    def checkChange( self, obj ):
+    def checkChange(self, obj):
         packageName = obj.data['packageName']
         ourPackage = self.apt.cache[packageName]
         if obj.state_get() == True:
@@ -287,7 +424,7 @@ class eepDater(object):
                 if self.packagesToUpdate[pak.name]['selected'] == False:
                     self.packagesToUpdate[pak.name]['check'].text = "dep"
 
-    def installUpdates( self ):
+    def installUpdates(self):
         if len(self.apt.cache.get_changes()) == 0:
             self.win.showDialog("Nothing to do",
                 "No packages selected to upgrade.<br>" \
@@ -297,19 +434,19 @@ class eepDater(object):
         self.win.flip.go(ELM_FLIP_ROTATE_YZ_CENTER_AXIS)
         self.apt.run("installUpdates", self.installUpdatesDone)
 
-    def installUpdatesDone( self, result ):
+    def installUpdatesDone(self, result):
         self.win.statusLabel.text = "<i>Refreshing package lists...</i>"
         self.apt.run("refreshPackages", self.refreshPackagesDone)
         self.packagesToUpdate.clear()
 
-    def refreshPackages( self ):
+    def refreshPackages(self):
         self.win.statusLabel.text = "<i>Refreshing package lists...</i>"
         self.win.flip.go(ELM_FLIP_ROTATE_YZ_CENTER_AXIS)
 
         self.apt.run("refreshPackages", self.refreshPackagesDone)
         self.packagesToUpdate.clear()
 
-    def refreshPackagesDone( self, upgradables ):
+    def refreshPackagesDone(self, upgradables):
         # clear the packages list
         storerows = list(self.win.packageList.rows)
         for row in storerows:
