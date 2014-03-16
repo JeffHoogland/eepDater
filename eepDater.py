@@ -82,85 +82,156 @@ class ThreadedAPT(object):
         self.replyQueue.put(True)
 
 
-class Interface(object):
-    def __init__( self ):
-        self.packagesToUpdate = {}
-        self.apt = ThreadedAPT()
+class MainWin(StandardWindow):
+    def __init__( self, app ):
+        # create the main window
+        StandardWindow.__init__(self, "eepDater", "eepDater - System Updater",
+                                autodel=True, size=(320, 320))
+        self.callback_delete_request_add(lambda o: elementary.exit())
+        self.app = app
 
-        #Build our GUI
-        self.mainWindow = StandardWindow("eepDater", "eepDater - System Updater",
-                                         autodel=True, size=(320, 320))
-        self.mainWindow.callback_delete_request_add(lambda o: elementary.exit())
+        # build the two main boxes
+        self.mainBox = self.buildMainBox()
+        self.loadBox = self.buildLoadBox()
 
-        #Our flip object has a load screen on one side and the GUI on the other
-        self.flipBox = Box(self.mainWindow, size_hint_weight=EXPAND_BOTH,
-                           size_hint_align=FILL_BOTH)
-        self.flipBox.show()
+        # the flip object has the load screen on one side and the GUI on the other
+        self.flip = Flip(self, size_hint_weight=EXPAND_BOTH,
+                         size_hint_align=FILL_BOTH)
+        self.flip.part_content_set("front", self.mainBox)
+        self.flip.part_content_set("back", self.loadBox)
+        self.resize_object_add(self.flip)
+        self.flip.show()
 
-        self.fl = fl = Flip(self.mainWindow, size_hint_weight=EXPAND_BOTH,
-                            size_hint_align=FILL_BOTH)
-        self.flipBox.pack_end(fl)
-        fl.show()
-        
-        #Build our loading screen
-        self.loadBox = Box(self.mainWindow, size_hint_weight=EXPAND_BOTH,
-                           size_hint_align=FILL_BOTH)
-        self.loadBox.show()
+        # show the window
+        self.show()
 
-        loadLable = Label(self.mainWindow, size_hint_weight=EXPAND_BOTH,
+    def buildLoadBox(self):
+        # build the load label
+        loadLable = Label(self, size_hint_weight=EXPAND_BOTH,
                           size_hint_align=FILL_HORIZ)
         loadLable.text = "<b>Processing</b>"
         loadLable.show()
-        self.loadBox.pack_end(loadLable)
+        
+        # build the spinning wheel
+        wheel = Progressbar(self, style="wheel", pulse_mode=True,
+                            size_hint_weight=EXPAND_BOTH,
+                            size_hint_align=FILL_HORIZ)
+        wheel.pulse(True)
+        wheel.show()
 
-        pb7 = Progressbar(self.mainWindow, style="wheel", text="Style: wheel",
-                          pulse_mode=True, size_hint_weight=EXPAND_BOTH,
-                          size_hint_align=FILL_HORIZ)
-        self.loadBox.pack_end(pb7)
-        pb7.pulse(True)
-        pb7.show()
+        # build the status label
+        self.statusLabel = Label(self, size_hint_weight=EXPAND_BOTH,
+                                 size_hint_align=FILL_HORIZ)
+        self.statusLabel.show()
 
-        self.statusLabel = statusLable = Label(self.mainWindow,
-                                               size_hint_weight=EXPAND_BOTH,
-                                               size_hint_align=FILL_HORIZ)
-        statusLable.show()
-        self.loadBox.pack_end(statusLable)
+        # put all the built objects in a vertical box
+        box = Box(self, size_hint_weight=EXPAND_BOTH, size_hint_align=FILL_BOTH)
+        box.pack_end(loadLable)
+        box.pack_end(wheel)
+        box.pack_end(self.statusLabel)
+        box.show()
 
-        self.mainBox = Box(self.mainWindow, size_hint_weight=EXPAND_BOTH,
+        return box
+
+    def buildMainBox(self):
+        # build our toolbar
+        self.mainTb = Toolbar(self, homogeneous=False,
+                              size_hint_weight=(0.0, 0.0),
+                              size_hint_align=(EVAS_HINT_FILL, 0.0))
+        self.mainTb.item_append("close", "Clear", self.clearPressed)
+        self.mainTb.item_append("apps", "Select All", self.selectAllPressed)
+        self.mainTb.item_append("refresh", "Refresh", self.refreshPressed)
+        self.mainTb.item_append("arrow_down", "Apply", self.installUpdatesPressed)
+        self.mainTb.show()
+
+        # build our sortable list that displays packages that need updates
+        titles = [("Upgrade", True), ("Package", True), ("Version", True)]
+        scr = Scroller(self, size_hint_weight=EXPAND_BOTH,
+                       size_hint_align=FILL_BOTH)
+        self.packageList = sl.SortedList(scr, titles=titles, homogeneous=False,
+                                         size_hint_weight=EXPAND_HORIZ)
+        scr.content = self.packageList
+        scr.show()
+
+        # build the label that shows the package's description
+        self.currentDescription = Label(self,
+                                        size_hint_weight=FILL_BOTH)
+        self.currentDescription.text = "Select a package for information"
+        self.currentDescription.line_wrap_set(True)
+        self.currentDescription.show()
+
+        self.desFrame = Frame(self, size_hint_weight=EXPAND_HORIZ,
+                              size_hint_align=FILL_HORIZ)
+        self.desFrame.text = "Description"
+        self.desFrame.content = self.currentDescription
+        self.desFrame.show()
+
+        # add all of our objects to the box
+        box = Box(self, size_hint_weight=EXPAND_BOTH,
                            size_hint_align=FILL_BOTH)
-        self.mainWindow.resize_object_add(self.flipBox)
+        box.pack_end(self.mainTb)
+        box.pack_end(scr)
+        box.pack_end(self.desFrame)
+        box.show()
 
-        fl.part_content_set("back", self.loadBox)
-        fl.part_content_set("front", self.mainBox)
+        return box
 
-        self.mainBox.show()
+    def clearPressed( self, obj, it ):
+        it.selected = False
+        for rw in self.packageList.rows:
+            rw[0].state = False
+            self.app.checkChange(rw[0])
+
+    def selectAllPressed( self, obj, it ):
+        it.selected = False
+        for rw in self.packageList.rows:
+            rw[0].state = True
+            self.app.checkChange(rw[0])
+
+    def refreshPressed( self, obj, it ):
+        it.selected = False
+        self.app.refreshPackages()
+
+    def installUpdatesPressed( self, obj, it ):
+        it.selected = False
+        self.app.installUpdates()
+
+    def packagePressed( self, obj ):
+        self.desFrame.text = "Description - %s" % obj.text
+        self.currentDescription.text = obj.data["packageDes"]
 
     def addPackage( self, packageName, versionNumber, packageDescription ):
         row = []
-        
-        ourCheck = Check(self.mainWindow)
+
+        ourCheck = Check(self)
         ourCheck.data['packageName'] = packageName
-        ourCheck.callback_changed_add( self.checkChange )
+        ourCheck.callback_changed_add(self.app.checkChange)
         ourCheck.show()
         row.append(ourCheck)
 
-        ourName = Button(self.mainWindow, style="anchor",
-                         size_hint_weight=EXPAND_HORIZ,
+        ourName = Button(self, style="anchor", size_hint_weight=EXPAND_HORIZ,
                          size_hint_align=FILL_HORIZ)
         ourName.text = packageName
         ourName.data["packageDes"] = packageDescription
-        ourName.callback_pressed_add( self.packagePress )
+        ourName.callback_pressed_add(self.packagePressed)
         ourName.show()
         row.append(ourName)
 
-        ourVersion = Label(self.mainWindow, size_hint_weight=EXPAND_HORIZ,
+        ourVersion = Label(self, size_hint_weight=EXPAND_HORIZ,
                            size_hint_align=(0.1, 0.5))
         ourVersion.text = versionNumber
         ourVersion.show()
         row.append(ourVersion)
 
-        self.packagesToUpdate[packageName] = {'check':ourCheck, 'selected':False}
+        self.app.packagesToUpdate[packageName] = {'check':ourCheck, 'selected':False}
         self.packageList.row_pack(row, sort=False)
+
+
+class eepDater(object):
+    def __init__( self ):
+        self.packagesToUpdate = {}
+        self.apt = ThreadedAPT()
+        self.win = MainWin(self)
 
     def checkChange( self, obj ):
         packageName = obj.data['packageName']
@@ -191,118 +262,44 @@ class Interface(object):
                 if self.packagesToUpdate[pak.name]['selected'] == False:
                     self.packagesToUpdate[pak.name]['check'].text = "dep"
 
-    def packagePress( self, obj ):
-        self.desFrame.text = "Description - %s" % obj.text
-        self.currentDescription.text = obj.data["packageDes"]
-
-    def clearPress( self, obj, it ):
-        it.selected_set(False)
-        for rw in self.packageList.rows:
-            rw[0].state_set(False)
-            self.checkChange(rw[0])
-
-    def selectAllPress( self, obj, it ):
-        for rw in self.packageList.rows:
-            rw[0].state_set(True)
-            self.checkChange(rw[0])
-        it.selected_set(False)
-
-    def refreshPress( self, obj, it ):
-        it.selected_set(False)
-        self.refreshPackages()
-
-    def installUpdatesPress( self, obj, it ):
-        it.selected_set(False)
-        self.installUpdates()
-
     def installUpdates( self ):
-        self.statusLabel.text = "<i>Installing selected pacakges...</i>"
-        self.fl.go(ELM_FLIP_ROTATE_YZ_CENTER_AXIS)
+        self.win.statusLabel.text = "<i>Installing selected pacakges...</i>"
+        self.win.flip.go(ELM_FLIP_ROTATE_YZ_CENTER_AXIS)
         self.apt.run("installUpdates", self.installUpdatesDone)
 
     def installUpdatesDone( self, result ):
-        self.statusLabel.text = "<i>Refreshing package lists...</i>"
+        self.win.statusLabel.text = "<i>Refreshing package lists...</i>"
         self.apt.run("refreshPackages", self.refreshPackagesDone)
         self.packagesToUpdate.clear()
 
     def refreshPackages( self ):
-        self.statusLabel.text = "<i>Refreshing package lists...</i>"
-        self.fl.go(ELM_FLIP_ROTATE_YZ_CENTER_AXIS)
+        self.win.statusLabel.text = "<i>Refreshing package lists...</i>"
+        self.win.flip.go(ELM_FLIP_ROTATE_YZ_CENTER_AXIS)
 
         self.apt.run("refreshPackages", self.refreshPackagesDone)
         self.packagesToUpdate.clear()
 
     def refreshPackagesDone( self, upgradables ):
         # clear the packages list
-        storerows = list(self.packageList.rows)
+        storerows = list(self.win.packageList.rows)
         for row in storerows:
-            self.packageList.row_unpack(row, True)
+            self.win.packageList.row_unpack(row, True)
 
         # populate the packages list
         for pak in upgradables:
             ourPackage = pak.name
             ourVersion = str(pak.candidate).split(":")[3][:-1].replace("'", "")
             ourDescription = pak.candidate.description
-            self.addPackage(ourPackage, ourVersion, ourDescription)
+            self.win.addPackage(ourPackage, ourVersion, ourDescription)
 
-        self.fl.go(ELM_FLIP_ROTATE_YZ_CENTER_AXIS)
+        self.win.flip.go(ELM_FLIP_ROTATE_YZ_CENTER_AXIS)
 
-    def launch( self ):
-        self.mainWindow.show()
-        self.buildmaingui()
-
-    def buildmaingui( self ):
-        #Build our toolbar
-        self.mainTb = Toolbar(self.mainWindow, homogeneous=False,
-                              size_hint_weight=(0.0, 0.0),
-                              size_hint_align=(EVAS_HINT_FILL, 0.0))
-        
-        self.mainTb.item_append("close", "Clear", self.clearPress)
-        self.mainTb.item_append("apps", "Select All", self.selectAllPress)
-        self.mainTb.item_append("refresh", "Refresh", self.refreshPress)
-        self.mainTb.item_append("arrow_down", "Apply", self.installUpdatesPress)
-
-        self.mainTb.show()
-
-        #Build our sortable list that displays packages that need updates
-        scr = Scroller(self.mainWindow, size_hint_weight = EXPAND_BOTH,
-                       size_hint_align = FILL_BOTH)
-    
-        titles = [("Upgrade", True), ("Package", True), ("Version", True)]
-
-        self.packageList = sl.SortedList(scr, titles=titles, homogeneous=False,
-                                         size_hint_weight=EXPAND_HORIZ)
-
-        #Get package list
-        self.refreshPackages()
-
-        scr.content = self.packageList
-        scr.show()
-
-        #Add a label that shows the package's description
-        self.desFrame = Frame(self.mainWindow, size_hint_weight=EXPAND_HORIZ,
-                              size_hint_align=FILL_HORIZ)
-        
-        self.currentDescription = Label(self.mainWindow,
-                                        size_hint_weight=FILL_BOTH)
-        self.currentDescription.text = "Select a package for information"
-        self.currentDescription.line_wrap_set(True)
-        self.currentDescription.show()
-
-        self.desFrame.text = "Description"
-        self.desFrame.content = self.currentDescription
-        self.desFrame.show()
-
-        #Add all of our objects to the window
-        self.mainBox.pack_end(self.mainTb)
-        self.mainBox.pack_end(scr)
-        self.mainBox.pack_end(self.desFrame)
 
 if __name__ == "__main__":
     elementary.init()
 
-    GUI = Interface()
-    GUI.launch()
+    app = eepDater()
+    app.refreshPackages()
 
     elementary.run()
     elementary.shutdown()
