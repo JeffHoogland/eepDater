@@ -145,7 +145,8 @@ class MainWin(StandardWindow):
         self.mainTb.show()
 
         # build our sortable list that displays packages that need updates
-        titles = [("Upgrade", True), ("Package", True), ("Version", True)]
+        titles = [("Upgrade", True), ("Package", True),
+                  ("Installed", True), ("Available", True)]
         scr = Scroller(self, size_hint_weight=EXPAND_BOTH,
                        size_hint_align=FILL_BOTH)
         self.packageList = sl.SortedList(scr, titles=titles, homogeneous=False,
@@ -219,9 +220,15 @@ class MainWin(StandardWindow):
 
         ourVersion = Label(self, size_hint_weight=EXPAND_HORIZ,
                            size_hint_align=(0.1, 0.5))
-        ourVersion.text = pak.candidate.version
+        ourVersion.text = pak.installed.version
         ourVersion.show()
         row.append(ourVersion)
+
+        newVersion = Label(self, size_hint_weight=EXPAND_HORIZ,
+                           size_hint_align=(0.1, 0.5))
+        newVersion.text = pak.candidate.version
+        newVersion.show()
+        row.append(newVersion)
 
         self.app.packagesToUpdate[pak.name] = {'check':ourCheck, 'selected':False}
         self.packageList.row_pack(row, sort=False)
