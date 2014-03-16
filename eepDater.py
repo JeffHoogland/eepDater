@@ -29,6 +29,9 @@ import efl.ecore as ecore
 
 import sortedlist as sl
 import apt
+from apt.progress.base import OpProgress as BaseOpProgress
+from apt.progress.base import AcquireProgress as BaseAcquireProgress
+from apt.progress.base import InstallProgress as BaseInstallProgress
 import threading
 import Queue
 
@@ -39,12 +42,143 @@ FILL_HORIZ = EVAS_HINT_FILL, 0.5
 ALIGN_CENTER = 0.5, 0.5
 
 
+class operationProgress(BaseOpProgress):
+    """Display the progress of operations such as opening the cache."""
+
+    def update(self, percent=None):
+        """Called periodically to update the user interface."""
+        BaseOpProgress.update(self, percent)
+        print("UPDATE_OP op:%s  subop:%s  percent:%.1f" % (
+              self.op, self.subop, self.percent))
+
+    def done(self):
+        """Called once an operation has been completed."""
+        BaseOpProgress.done(self)
+        print("DONE_OP")
+
+
+class updateProgress(BaseAcquireProgress):
+    """Called by the apt thread while updating packages cache info"""
+    def __init__(self):
+        BaseAcquireProgress.__init__(self)
+
+    def start(self):
+        BaseAcquireProgress.start(self)
+        print("### START UPDATE ###")
+
+    def stop(self):
+        BaseAcquireProgress.stop(self)
+        print("### UPDATE DONE ###")
+
+    def pulse(self, owner):
+        BaseAcquireProgress.pulse(self, owner)
+        print("PULSE items:%d/%d bytes:%.1f/%.1f rate:%.1f elapsed:%d" % (
+              self.current_items, self.total_items, 
+              self.current_bytes, self.total_bytes,
+              self.current_cps, self.elapsed_time))
+        return True # False to cancel the job
+
+    def ims_hit(self, item):
+        """ Invoked when an item is confirmed to be up-to-date """
+        print("IMS_HIT", item.description)
+    
+    def fetch(self, item):
+        """ Invoked when some of the item's data is fetched. """
+        print("FETCH", item.description)
+
+    def done(self, item):
+        """ Invoked when an item is successfully and completely fetched. """
+        print("DONE", item.description)
+
+    def fail(self, item):
+        """ Invoked when the process of fetching an item encounters an error. """
+        print("FAIL", item.description)
+
+
+class downloadProgress(BaseAcquireProgress):
+    """Called by the apt thread while downloading pakages"""
+    def __init__(self):
+        BaseAcquireProgress.__init__(self)
+
+    def start(self):
+        """Invoked when the Acquire process starts running."""
+        BaseAcquireProgress.start(self)
+        print("### START DOWNLOAD ###")
+
+    def stop(self):
+        """Invoked when the Acquire process stops running."""
+        BaseAcquireProgress.stop(self)
+        print("### DOWNLOAD DONE ###")
+
+    def pulse(self, owner):
+        """Periodically invoked while the Acquire process is underway."""
+        BaseAcquireProgress.stop(self, owner)
+        print("PULSE  items:%d/%d  bytes:%.1f/%.1f  rate:%.1f  elapsed:%d" % (
+              self.current_items, self.total_items, 
+              self.current_bytes, self.total_bytes,
+              self.current_cps, self.elapsed_time))
+        return True # False to cancel the job
+
+    def ims_hit(self, item):
+        """Invoked when an item is confirmed to be up-to-date"""
+        print("IMS_HIT", item.description)
+    
+    def fetch(self, item):
+        """Invoked when some of the item's data is fetched."""
+        print("FETCH", item.description)
+
+    def done(self, item):
+        """Invoked when an item is successfully and completely fetched."""
+        print("DONE", item.description)
+
+    def fail(self, item):
+        """Invoked when the process of fetching an item encounters an error."""
+        print("FAIL", item.description)
+
+
+class installProgress(BaseInstallProgress):
+    """Called by the apt thread while installing pakages"""
+    def __init__(self):
+        BaseInstallProgress.__init__(self)
+
+    def conffile(current, new):
+        """Called when a conffile question from dpkg is detected."""
+        BaseInstallProgress.conffile(self, current, new)
+        print("CONFFILE", current, new)
+
+    def start_update(self):
+        """(Abstract) Start update."""
+        print("START_UPDATE")
+
+    def finish_update(self):
+        """(Abstract) Called when update has finished."""
+        print("FINISH_UPDATE")
+
+    def error(self, pkg, errormsg):
+        """(Abstract) Called when a error is detected during the install."""
+        print("ERROR_UPDATE", pkg, errormsg)
+
+    def status_change(self, pkg, percent, status):
+        """(Abstract) Called when the APT status changed."""
+        print("STATUS_CHANGE", pkg, percent, status)
+
+    def processing(self, pkg, stage):
+        """(Abstract) Sent just before a processing stage starts."""
+        print("PROCESSING", pkg, stage)
+
+
 class ThreadedAPT(object):
     def __init__( self ):
         self.cache = apt.Cache()
         self.commandQueue = Queue.Queue()
         self.replyQueue = Queue.Queue()
         self.doneCB = None
+
+        # create instances of the classes used to report progress
+        self.op_progress = operationProgress()
+        self.update_progress = updateProgress()
+        self.download_progress = downloadProgress()
+        self.install_progress = installProgress()
 
         # start the working thread
         self.t = threading.Thread(target=self.threadFunc)
@@ -78,14 +212,14 @@ class ThreadedAPT(object):
                 break
 
     def refreshPackages( self ):
-        self.cache.update()
-        self.cache.open(None)
+        self.cache.update(self.update_progress)
+        self.cache.open(self.op_progress)
 
         upgradables = [pak for pak in self.cache if pak.is_upgradable]
         self.replyQueue.put(upgradables)
 
     def installUpdates( self ):
-        self.cache.commit()
+        self.cache.commit(self.download_progress, self.install_progress)
         self.replyQueue.put(True)
 
 
