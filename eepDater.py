@@ -169,58 +169,60 @@ class installProgress(BaseInstallProgress):
 
 class ThreadedAPT(object):
     def __init__(self):
+        # the accessible apt cache object
         self.cache = apt.Cache()
-        self.commandQueue = Queue.Queue()
-        self.replyQueue = Queue.Queue()
-        self.doneCB = None
 
-        # create instances of the classes used to report progress
-        self.op_progress = operationProgress()
-        self.update_progress = updateProgress()
-        self.download_progress = downloadProgress()
-        self.install_progress = installProgress()
+        # private stuff
+        self._commandQueue = Queue.Queue()
+        self._replyQueue = Queue.Queue()
+        self._doneCB = None
 
-        # start the working thread
-        self.t = threading.Thread(target=self.threadFunc)
-        self.t.start()
+        # instances of the classes used to report progress
+        self._op_progress = operationProgress()
+        self._update_progress = updateProgress()
+        self._download_progress = downloadProgress()
+        self._install_progress = installProgress()
 
         # add a timer to check the data returned by the worker thread
-        self.timer = ecore.Timer(0.1, self.checkReplyQueue)
+        self._timer = ecore.Timer(0.1, self.checkReplyQueue)
+
+        # start the working thread
+        threading.Thread(target=self.threadFunc).start()
 
     def run(self, action, doneCB=None):
-        self.doneCB = doneCB
-        self.commandQueue.put(getattr(self, action))
+        self._doneCB = doneCB
+        self._commandQueue.put(getattr(self, action))
 
     def shutdown(self):
-        self.commandQueue.put('QUIT')
+        self._commandQueue.put('QUIT')
 
     def checkReplyQueue(self):
-        if not self.replyQueue.empty():
-            result = self.replyQueue.get_nowait()
-            if callable(self.doneCB):
-                self.doneCB(result)
+        if not self._replyQueue.empty():
+            result = self._replyQueue.get_nowait()
+            if callable(self._doneCB):
+                self._doneCB(result)
         return True
 
     # all the member below this point run in the thread
     def threadFunc(self):
         while True:
             # wait here until an item in the queue is present
-            func = self.commandQueue.get()
+            func = self._commandQueue.get()
             if callable(func):
                 func()
             elif func == 'QUIT':
                 break
 
     def refreshPackages(self):
-        self.cache.update(self.update_progress)
-        self.cache.open(self.op_progress)
+        self.cache.update(self._update_progress)
+        self.cache.open(self._op_progress)
 
         upgradables = [pak for pak in self.cache if pak.is_upgradable]
-        self.replyQueue.put(upgradables)
+        self._replyQueue.put(upgradables)
 
     def installUpdates(self):
-        self.cache.commit(self.download_progress, self.install_progress)
-        self.replyQueue.put(True)
+        self.cache.commit(self._download_progress, self._install_progress)
+        self._replyQueue.put(True)
 
 
 class MainWin(StandardWindow):
