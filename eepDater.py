@@ -52,7 +52,7 @@ class Interface(object):
         self.t.start()
     
         #Build our GUI
-        self.mainWindow = StandardWindow("eppDater", "eppDater - System Updater", autodel=True, size=(320, 320))
+        self.mainWindow = StandardWindow("eepDater", "eepDater - System Updater", autodel=True, size=(320, 320))
         self.mainWindow.callback_delete_request_add(lambda o: elementary.exit())
 
         #Our flip object which has a load screen on one side and the GUI on the other
