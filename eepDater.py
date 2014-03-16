@@ -52,40 +52,49 @@ class Interface(object):
         self.t.start()
     
         #Build our GUI
-        self.mainWindow = StandardWindow("eepDater", "eepDater - System Updater", autodel=True, size=(320, 320))
+        self.mainWindow = StandardWindow("eepDater", "eepDater - System Updater",
+                                         autodel=True, size=(320, 320))
         self.mainWindow.callback_delete_request_add(lambda o: elementary.exit())
 
-        #Our flip object which has a load screen on one side and the GUI on the other
-        self.flipBox = Box(self.mainWindow, size_hint_weight=EXPAND_BOTH, size_hint_align=FILL_BOTH)
+        #Our flip object has a load screen on one side and the GUI on the other
+        self.flipBox = Box(self.mainWindow, size_hint_weight=EXPAND_BOTH,
+                           size_hint_align=FILL_BOTH)
         self.flipBox.show()
 
-        self.fl = fl = Flip(self.mainWindow, size_hint_weight=EXPAND_BOTH, size_hint_align=FILL_BOTH)
+        self.fl = fl = Flip(self.mainWindow, size_hint_weight=EXPAND_BOTH,
+                            size_hint_align=FILL_BOTH)
         self.flipBox.pack_end(fl)
         fl.show()
         
         #Build our loading screen
-        self.loadBox = Box(self.mainWindow, size_hint_weight=EXPAND_BOTH, size_hint_align=FILL_BOTH)
+        self.loadBox = Box(self.mainWindow, size_hint_weight=EXPAND_BOTH,
+                           size_hint_align=FILL_BOTH)
         self.loadBox.show()
 
-        loadLable = Label(self.mainWindow, size_hint_weight=EXPAND_BOTH, size_hint_align=FILL_HORIZ)
+        loadLable = Label(self.mainWindow, size_hint_weight=EXPAND_BOTH,
+                          size_hint_align=FILL_HORIZ)
         loadLable.text = "<b>Processing</b>"
         loadLable.show()
         self.loadBox.pack_end(loadLable)
 
-        pb7 = Progressbar(self.mainWindow, style="wheel", text="Style: wheel", pulse_mode=True,
-                    size_hint_weight=EXPAND_BOTH, size_hint_align=FILL_HORIZ)
+        pb7 = Progressbar(self.mainWindow, style="wheel", text="Style: wheel",
+                          pulse_mode=True, size_hint_weight=EXPAND_BOTH,
+                          size_hint_align=FILL_HORIZ)
         self.loadBox.pack_end(pb7)
         pb7.pulse(True)
         pb7.show()
 
         self.loadStatus = ""
 
-        self.statusLabel = statusLable = Label(self.mainWindow, size_hint_weight=EXPAND_BOTH, size_hint_align=FILL_HORIZ)
+        self.statusLabel = statusLable = Label(self.mainWindow,
+                                               size_hint_weight=EXPAND_BOTH,
+                                               size_hint_align=FILL_HORIZ)
         statusLable.text = self.loadStatus
         statusLable.show()
         self.loadBox.pack_end(statusLable)
 
-        self.mainBox = Box(self.mainWindow, size_hint_weight=EXPAND_BOTH, size_hint_align=FILL_BOTH)
+        self.mainBox = Box(self.mainWindow, size_hint_weight=EXPAND_BOTH,
+                           size_hint_align=FILL_BOTH)
         self.mainWindow.resize_object_add(self.flipBox)
 
         fl.part_content_set("back", self.loadBox)
@@ -138,8 +147,9 @@ class Interface(object):
         ourCheck.show()
         row.append(ourCheck)
 
-        ourName = Button(self.mainWindow, style="anchor", size_hint_weight=EXPAND_HORIZ,
-                    size_hint_align=FILL_HORIZ)
+        ourName = Button(self.mainWindow, style="anchor",
+                         size_hint_weight=EXPAND_HORIZ,
+                         size_hint_align=FILL_HORIZ)
         ourName.text = packageName
         ourName.data["packageDes"] = packageDescription
         ourName.callback_pressed_add( self.packagePress )
@@ -147,7 +157,7 @@ class Interface(object):
         row.append(ourName)
 
         ourVersion = Label(self.mainWindow, size_hint_weight=EXPAND_HORIZ,
-                    size_hint_align=(0.1, 0.5))
+                           size_hint_align=(0.1, 0.5))
         ourVersion.text = versionNumber
         ourVersion.show()
         row.append(ourVersion)
@@ -236,7 +246,9 @@ class Interface(object):
 
     def buildmaingui( self ):
         #Build our toolbar
-        self.mainTb = Toolbar(self.mainWindow, homogeneous=False, size_hint_weight=(0.0, 0.0), size_hint_align=(EVAS_HINT_FILL, 0.0))
+        self.mainTb = Toolbar(self.mainWindow, homogeneous=False,
+                              size_hint_weight=(0.0, 0.0),
+                              size_hint_align=(EVAS_HINT_FILL, 0.0))
         
         self.mainTb.item_append("close", "Clear", self.clearPress)
         self.mainTb.item_append("apps", "Select All", self.selectAllPress)
@@ -246,11 +258,13 @@ class Interface(object):
         self.mainTb.show()
 
         #Build our sortable list that displays packages that need updates
-        scr = Scroller(self.mainWindow, size_hint_weight = EXPAND_BOTH, size_hint_align = FILL_BOTH)
+        scr = Scroller(self.mainWindow, size_hint_weight = EXPAND_BOTH,
+                       size_hint_align = FILL_BOTH)
     
         titles = [("Upgrade", True), ("Package", True), ("Version", True)]
 
-        self.packageList = sl.SortedList(scr, titles=titles, size_hint_weight=EXPAND_BOTH, homogeneous=False)
+        self.packageList = sl.SortedList(scr, titles=titles, homogeneous=False,
+                                         size_hint_weight=EXPAND_BOTH)
 
         #Get package list
         self.queueIt(self.refreshPackages)
@@ -259,9 +273,11 @@ class Interface(object):
         scr.show()
 
         #Add a label that shows the package's description
-        self.desFrame = Frame(self.mainWindow, size_hint_weight = (EVAS_HINT_EXPAND, 0.0), size_hint_align = (-1.0, 0.0))
+        self.desFrame = Frame(self.mainWindow, size_hint_weight=EXPAND_HORIZ,
+                              size_hint_align=FILL_HORIZ)
         
-        self.currentDescription = Label(self.mainWindow, size_hint_weight = FILL_BOTH)
+        self.currentDescription = Label(self.mainWindow,
+                                        size_hint_weight=FILL_BOTH)
         self.currentDescription.text = "Select a package for information"
         self.currentDescription.line_wrap_set(True)
         self.currentDescription.show()
