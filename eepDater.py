@@ -56,6 +56,9 @@ class ThreadedAPT(object):
         self.doneCB = doneCB
         self.commandQueue.put(getattr(self, action))
 
+    def shutdown( self ):
+        self.commandQueue.put('QUIT')
+
     def checkReplyQueue( self ):
         if not self.replyQueue.empty():
             result = self.replyQueue.get_nowait()
@@ -68,7 +71,10 @@ class ThreadedAPT(object):
         while True:
             # wait here until an item in the queue is present
             func = self.commandQueue.get()
-            func()
+            if callable(func):
+                func()
+            elif func == 'QUIT':
+                break
 
     def refreshPackages( self ):
         self.cache.update()
@@ -306,4 +312,6 @@ if __name__ == "__main__":
     app.refreshPackages()
 
     elementary.run()
+    app.apt.shutdown()
+
     elementary.shutdown()
