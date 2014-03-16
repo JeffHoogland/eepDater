@@ -168,7 +168,7 @@ class installProgress(BaseInstallProgress):
 
 
 class ThreadedAPT(object):
-    def __init__( self ):
+    def __init__(self):
         self.cache = apt.Cache()
         self.commandQueue = Queue.Queue()
         self.replyQueue = Queue.Queue()
@@ -187,14 +187,14 @@ class ThreadedAPT(object):
         # add a timer to check the data returned by the worker thread
         self.timer = ecore.Timer(0.1, self.checkReplyQueue)
 
-    def run( self, action, doneCB=None ):
+    def run(self, action, doneCB=None):
         self.doneCB = doneCB
         self.commandQueue.put(getattr(self, action))
 
-    def shutdown( self ):
+    def shutdown(self):
         self.commandQueue.put('QUIT')
 
-    def checkReplyQueue( self ):
+    def checkReplyQueue(self):
         if not self.replyQueue.empty():
             result = self.replyQueue.get_nowait()
             if callable(self.doneCB):
@@ -202,7 +202,7 @@ class ThreadedAPT(object):
         return True
 
     # all the member below this point run in the thread
-    def threadFunc( self ):
+    def threadFunc(self):
         while True:
             # wait here until an item in the queue is present
             func = self.commandQueue.get()
@@ -211,20 +211,20 @@ class ThreadedAPT(object):
             elif func == 'QUIT':
                 break
 
-    def refreshPackages( self ):
+    def refreshPackages(self):
         self.cache.update(self.update_progress)
         self.cache.open(self.op_progress)
 
         upgradables = [pak for pak in self.cache if pak.is_upgradable]
         self.replyQueue.put(upgradables)
 
-    def installUpdates( self ):
+    def installUpdates(self):
         self.cache.commit(self.download_progress, self.install_progress)
         self.replyQueue.put(True)
 
 
 class MainWin(StandardWindow):
-    def __init__( self, app ):
+    def __init__(self, app):
         # create the main window
         StandardWindow.__init__(self, "eepDater", "eepDater - System Updater",
                                 autodel=True, size=(320, 320))
@@ -318,31 +318,31 @@ class MainWin(StandardWindow):
 
         return box
 
-    def clearPressed( self, obj, it ):
+    def clearPressed(self, obj, it):
         it.selected = False
         for rw in self.packageList.rows:
             rw[0].state = False
             self.app.checkChange(rw[0])
 
-    def selectAllPressed( self, obj, it ):
+    def selectAllPressed(self, obj, it):
         it.selected = False
         for rw in self.packageList.rows:
             rw[0].state = True
             self.app.checkChange(rw[0])
 
-    def refreshPressed( self, obj, it ):
+    def refreshPressed(self, obj, it):
         it.selected = False
         self.app.refreshPackages()
 
-    def installUpdatesPressed( self, obj, it ):
+    def installUpdatesPressed(self, obj, it):
         it.selected = False
         self.app.installUpdates()
 
-    def packagePressed( self, obj ):
+    def packagePressed(self, obj):
         self.desFrame.text = "Description - %s" % obj.text
         self.currentDescription.text = obj.data["packageDes"]
 
-    def addPackage( self, pak ):
+    def addPackage(self, pak):
         row = []
 
         ourCheck = Check(self)
@@ -387,12 +387,12 @@ class MainWin(StandardWindow):
 
 
 class eepDater(object):
-    def __init__( self ):
+    def __init__(self):
         self.packagesToUpdate = {}
         self.apt = ThreadedAPT()
         self.win = MainWin(self)
 
-    def checkChange( self, obj ):
+    def checkChange(self, obj):
         packageName = obj.data['packageName']
         ourPackage = self.apt.cache[packageName]
         if obj.state_get() == True:
@@ -421,7 +421,7 @@ class eepDater(object):
                 if self.packagesToUpdate[pak.name]['selected'] == False:
                     self.packagesToUpdate[pak.name]['check'].text = "dep"
 
-    def installUpdates( self ):
+    def installUpdates(self):
         if len(self.apt.cache.get_changes()) == 0:
             self.win.showDialog("Nothing to do",
                 "No packages selected to upgrade.<br>" \
@@ -431,19 +431,19 @@ class eepDater(object):
         self.win.flip.go(ELM_FLIP_ROTATE_YZ_CENTER_AXIS)
         self.apt.run("installUpdates", self.installUpdatesDone)
 
-    def installUpdatesDone( self, result ):
+    def installUpdatesDone(self, result):
         self.win.statusLabel.text = "<i>Refreshing package lists...</i>"
         self.apt.run("refreshPackages", self.refreshPackagesDone)
         self.packagesToUpdate.clear()
 
-    def refreshPackages( self ):
+    def refreshPackages(self):
         self.win.statusLabel.text = "<i>Refreshing package lists...</i>"
         self.win.flip.go(ELM_FLIP_ROTATE_YZ_CENTER_AXIS)
 
         self.apt.run("refreshPackages", self.refreshPackagesDone)
         self.packagesToUpdate.clear()
 
-    def refreshPackagesDone( self, upgradables ):
+    def refreshPackagesDone(self, upgradables):
         # clear the packages list
         storerows = list(self.win.packageList.rows)
         for row in storerows:
