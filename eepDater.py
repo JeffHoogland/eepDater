@@ -15,6 +15,7 @@ from efl.elementary.label import Label
 from efl.elementary.scroller import Scroller
 from efl.elementary.check import Check
 from efl.elementary.progressbar import Progressbar
+from efl.elementary.popup import Popup
 from efl.elementary.flip import Flip, ELM_FLIP_ROTATE_X_CENTER_AXIS, \
     ELM_FLIP_ROTATE_Y_CENTER_AXIS, ELM_FLIP_ROTATE_XZ_CENTER_AXIS, \
     ELM_FLIP_ROTATE_YZ_CENTER_AXIS, ELM_FLIP_CUBE_LEFT, ELM_FLIP_CUBE_RIGHT, \
@@ -239,6 +240,17 @@ class MainWin(StandardWindow):
         self.app.packagesToUpdate[pak.name] = {'check':ourCheck, 'selected':False}
         self.packageList.row_pack(row, sort=False)
 
+    def showDialog(self, title, msg):
+        dia = Popup(self)
+        dia.part_text_set("title,text", title)
+        dia.part_text_set("default", msg)
+
+        bt = Button(dia, text="Ok")
+        bt.callback_clicked_add(lambda b: dia.delete())
+        dia.part_content_set("button1", bt)
+
+        dia.show()
+
 
 class eepDater(object):
     def __init__( self ):
@@ -276,7 +288,12 @@ class eepDater(object):
                     self.packagesToUpdate[pak.name]['check'].text = "dep"
 
     def installUpdates( self ):
-        self.win.statusLabel.text = "<i>Installing selected pacakges...</i>"
+        if len(self.apt.cache.get_changes()) == 0:
+            self.win.showDialog("Nothing to do",
+                "No packages selected to upgrade.<br>" \
+                "You must select at least one package from the list.")
+            return
+        self.win.statusLabel.text = "<i>Installing selected packages...</i>"
         self.win.flip.go(ELM_FLIP_ROTATE_YZ_CENTER_AXIS)
         self.apt.run("installUpdates", self.installUpdatesDone)
 
