@@ -200,30 +200,30 @@ class MainWin(StandardWindow):
         self.desFrame.text = "Description - %s" % obj.text
         self.currentDescription.text = obj.data["packageDes"]
 
-    def addPackage( self, packageName, versionNumber, packageDescription ):
+    def addPackage( self, pak ):
         row = []
 
         ourCheck = Check(self)
-        ourCheck.data['packageName'] = packageName
+        ourCheck.data['packageName'] = pak.name
         ourCheck.callback_changed_add(self.app.checkChange)
         ourCheck.show()
         row.append(ourCheck)
 
         ourName = Button(self, style="anchor", size_hint_weight=EXPAND_HORIZ,
                          size_hint_align=FILL_HORIZ)
-        ourName.text = packageName
-        ourName.data["packageDes"] = packageDescription
+        ourName.text = pak.name
+        ourName.data["packageDes"] = pak.candidate.description
         ourName.callback_pressed_add(self.packagePressed)
         ourName.show()
         row.append(ourName)
 
         ourVersion = Label(self, size_hint_weight=EXPAND_HORIZ,
                            size_hint_align=(0.1, 0.5))
-        ourVersion.text = versionNumber
+        ourVersion.text = pak.candidate.version
         ourVersion.show()
         row.append(ourVersion)
 
-        self.app.packagesToUpdate[packageName] = {'check':ourCheck, 'selected':False}
+        self.app.packagesToUpdate[pak.name] = {'check':ourCheck, 'selected':False}
         self.packageList.row_pack(row, sort=False)
 
 
@@ -287,10 +287,7 @@ class eepDater(object):
 
         # populate the packages list
         for pak in upgradables:
-            ourPackage = pak.name
-            ourVersion = str(pak.candidate).split(":")[3][:-1].replace("'", "")
-            ourDescription = pak.candidate.description
-            self.win.addPackage(ourPackage, ourVersion, ourDescription)
+            self.win.addPackage(pak)
 
         self.win.flip.go(ELM_FLIP_ROTATE_YZ_CENTER_AXIS)
 
