@@ -194,6 +194,7 @@ class ThreadedAPT(object):
         self._commandQueue.put(getattr(self, action))
 
     def shutdown(self):
+        self._timer.delete()
         self._commandQueue.put('QUIT')
 
     def checkReplyQueue(self):
