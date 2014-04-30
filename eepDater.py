@@ -16,6 +16,7 @@ from efl.elementary.scroller import Scroller
 from efl.elementary.check import Check
 from efl.elementary.progressbar import Progressbar
 from efl.elementary.popup import Popup
+from efl.elementary.icon import Icon
 from efl.elementary.flip import Flip, ELM_FLIP_ROTATE_X_CENTER_AXIS, \
     ELM_FLIP_ROTATE_Y_CENTER_AXIS, ELM_FLIP_ROTATE_XZ_CENTER_AXIS, \
     ELM_FLIP_ROTATE_YZ_CENTER_AXIS, ELM_FLIP_CUBE_LEFT, ELM_FLIP_CUBE_RIGHT, \
@@ -233,6 +234,13 @@ class MainWin(StandardWindow):
                                 autodel=True, size=(320, 320))
         self.callback_delete_request_add(lambda o: elementary.exit())
         self.app = app
+
+        icon = Icon(self)
+        icon.size_hint_weight_set(EVAS_HINT_EXPAND, EVAS_HINT_EXPAND)
+        icon.size_hint_align_set(EVAS_HINT_FILL, EVAS_HINT_FILL)
+        icon.standard_set('software-center')
+        icon.show()
+        self.icon_object_set(icon.object_get())
 
         # build the two main boxes
         self.mainBox = self.buildMainBox()
