@@ -332,11 +332,11 @@ class MainWin(StandardWindow):
         self.mainTb = Toolbar(self, homogeneous=False,
                               size_hint_weight=(0.0, 0.0),
                               size_hint_align=(EVAS_HINT_FILL, 0.0))
-        self.mainTb.item_append("close", "Clear", self.clearPressed)
-        self.mainTb.item_append("apps", "Select All", self.selectAllPressed)
-        self.mainTb.item_append("refresh", "Refresh", self.refreshPressed)
+        self.mainTb.item_append("remove", "Clear", self.clearPressed)
+        self.mainTb.item_append("system-run", "Select All", self.selectAllPressed)
+        self.mainTb.item_append("view-refresh", "Refresh", self.refreshPressed)
         self.mainTb.item_append("info", "Log", self.detailsPressed)
-        self.mainTb.item_append("arrow_down", "Apply", self.installUpdatesPressed)
+        self.mainTb.item_append("ok", "Apply", self.installUpdatesPressed)
         self.mainTb.show()
 
         # build our sortable list that displays packages that need updates
