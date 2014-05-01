@@ -44,10 +44,10 @@ FILL_BOTH = EVAS_HINT_FILL, EVAS_HINT_FILL
 FILL_HORIZ = EVAS_HINT_FILL, 0.5
 ALIGN_CENTER = 0.5, 0.5
 
-def statusMessage(text, text2=""):
+def statusMessage(text, text2="", text3="", text4=""):
     global progressque
-    progressque.append("%s%s"%(text, text2))
-    print "%s%s"%(text, text2)
+    progressque.append("%s%s%s%s"%(text, text2, text3, text4))
+    print(text, text2, text3, text4)
 
 class operationProgress(BaseOpProgress):
     """Display the progress of operations such as opening the cache."""
@@ -286,7 +286,7 @@ class MainWin(StandardWindow):
                           size_hint_align=FILL_HORIZ)
         self.innerWin.content_set(box)
 
-    def innerWinShow(self, obj):
+    def innerWinShow(self, obj=False):
         self.innerWin.show()
         self.innerWin.activate()
 
@@ -321,8 +321,8 @@ class MainWin(StandardWindow):
         box = Box(self, size_hint_weight=EXPAND_BOTH, size_hint_align=FILL_BOTH)
         box.pack_end(loadLable)
         box.pack_end(wheel)
+        box.pack_end(self.statusLabel)        
         box.pack_end(detailsbtn)
-        box.pack_end(self.statusLabel)
         box.show()
 
         return box
@@ -335,6 +335,7 @@ class MainWin(StandardWindow):
         self.mainTb.item_append("close", "Clear", self.clearPressed)
         self.mainTb.item_append("apps", "Select All", self.selectAllPressed)
         self.mainTb.item_append("refresh", "Refresh", self.refreshPressed)
+        self.mainTb.item_append("info", "Log", self.detailsPressed)
         self.mainTb.item_append("arrow_down", "Apply", self.installUpdatesPressed)
         self.mainTb.show()
 
@@ -370,6 +371,10 @@ class MainWin(StandardWindow):
         box.show()
 
         return box
+
+    def detailsPressed(self, obj, it):
+        it.selected = False
+        self.innerWinShow()
 
     def clearPressed(self, obj, it):
         it.selected = False
