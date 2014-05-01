@@ -17,6 +17,8 @@ from efl.elementary.check import Check
 from efl.elementary.progressbar import Progressbar
 from efl.elementary.popup import Popup
 from efl.elementary.icon import Icon
+from efl.elementary.innerwindow import InnerWindow
+from efl.elementary.entry import Entry, ELM_TEXT_FORMAT_PLAIN_UTF8
 from efl.elementary.flip import Flip, ELM_FLIP_ROTATE_X_CENTER_AXIS, \
     ELM_FLIP_ROTATE_Y_CENTER_AXIS, ELM_FLIP_ROTATE_XZ_CENTER_AXIS, \
     ELM_FLIP_ROTATE_YZ_CENTER_AXIS, ELM_FLIP_CUBE_LEFT, ELM_FLIP_CUBE_RIGHT, \
@@ -42,6 +44,10 @@ FILL_BOTH = EVAS_HINT_FILL, EVAS_HINT_FILL
 FILL_HORIZ = EVAS_HINT_FILL, 0.5
 ALIGN_CENTER = 0.5, 0.5
 
+def statusMessage(text, text2=""):
+    global progressque
+    progressque.append("%s%s"%(text, text2))
+    print "%s%s"%(text, text2)
 
 class operationProgress(BaseOpProgress):
     """Display the progress of operations such as opening the cache."""
@@ -49,13 +55,13 @@ class operationProgress(BaseOpProgress):
     def update(self, percent=None):
         """Called periodically to update the user interface."""
         BaseOpProgress.update(self, percent)
-        print("UPDATE_OP op:%s  subop:%s  percent:%.1f" % (
+        statusMessage("UPDATE_OP op:%s  subop:%s  percent:%.1f" % (
               self.op, self.subop, self.percent))
 
     def done(self):
         """Called once an operation has been completed."""
         BaseOpProgress.done(self)
-        print("DONE_OP")
+        statusMessage("DONE_OP")
 
 
 class updateProgress(BaseAcquireProgress):
@@ -65,15 +71,15 @@ class updateProgress(BaseAcquireProgress):
 
     def start(self):
         BaseAcquireProgress.start(self)
-        print("### START UPDATE ###")
+        statusMessage("### START UPDATE ###")
 
     def stop(self):
         BaseAcquireProgress.stop(self)
-        print("### UPDATE DONE ###")
+        statusMessage("### UPDATE DONE ###")
 
     def pulse(self, owner):
         BaseAcquireProgress.pulse(self, owner)
-        print("PULSE items:%d/%d bytes:%.1f/%.1f rate:%.1f elapsed:%d" % (
+        statusMessage("PULSE items:%d/%d bytes:%.1f/%.1f rate:%.1f elapsed:%d" % (
               self.current_items, self.total_items, 
               self.current_bytes, self.total_bytes,
               self.current_cps, self.elapsed_time))
@@ -81,19 +87,19 @@ class updateProgress(BaseAcquireProgress):
 
     def ims_hit(self, item):
         """ Invoked when an item is confirmed to be up-to-date """
-        print("IMS_HIT", item.description)
+        statusMessage("IMS_HIT", item.description)
     
     def fetch(self, item):
         """ Invoked when some of the item's data is fetched. """
-        print("FETCH", item.description)
+        statusMessage("FETCH", item.description)
 
     def done(self, item):
         """ Invoked when an item is successfully and completely fetched. """
-        print("DONE", item.description)
+        statusMessage("DONE", item.description)
 
     def fail(self, item):
         """ Invoked when the process of fetching an item encounters an error. """
-        print("FAIL", item.description)
+        statusMessage("FAIL", item.description)
 
 
 class downloadProgress(BaseAcquireProgress):
@@ -104,17 +110,17 @@ class downloadProgress(BaseAcquireProgress):
     def start(self):
         """Invoked when the Acquire process starts running."""
         BaseAcquireProgress.start(self)
-        print("### START DOWNLOAD ###")
+        statusMessage("### START DOWNLOAD ###")
 
     def stop(self):
         """Invoked when the Acquire process stops running."""
         BaseAcquireProgress.stop(self)
-        print("### DOWNLOAD DONE ###")
+        statusMessage("### DOWNLOAD DONE ###")
 
     def pulse(self, owner):
         """Periodically invoked while the Acquire process is underway."""
         BaseAcquireProgress.stop(self, owner)
-        print("PULSE  items:%d/%d  bytes:%.1f/%.1f  rate:%.1f  elapsed:%d" % (
+        statusMessage("PULSE  items:%d/%d  bytes:%.1f/%.1f  rate:%.1f  elapsed:%d" % (
               self.current_items, self.total_items, 
               self.current_bytes, self.total_bytes,
               self.current_cps, self.elapsed_time))
@@ -122,19 +128,19 @@ class downloadProgress(BaseAcquireProgress):
 
     def ims_hit(self, item):
         """Invoked when an item is confirmed to be up-to-date"""
-        print("IMS_HIT", item.description)
+        statusMessage("IMS_HIT", item.description)
     
     def fetch(self, item):
         """Invoked when some of the item's data is fetched."""
-        print("FETCH", item.description)
+        statusMessage("FETCH", item.description)
 
     def done(self, item):
         """Invoked when an item is successfully and completely fetched."""
-        print("DONE", item.description)
+        statusMessage("DONE", item.description)
 
     def fail(self, item):
         """Invoked when the process of fetching an item encounters an error."""
-        print("FAIL", item.description)
+        statusMessage("FAIL", item.description)
 
 
 class installProgress(BaseInstallProgress):
@@ -145,27 +151,27 @@ class installProgress(BaseInstallProgress):
     def conffile(current, new):
         """Called when a conffile question from dpkg is detected."""
         BaseInstallProgress.conffile(self, current, new)
-        print("CONFFILE", current, new)
+        statusMessage("CONFFILE", current, new)
 
     def start_update(self):
         """(Abstract) Start update."""
-        print("START_UPDATE")
+        statusMessage("START_UPDATE")
 
     def finish_update(self):
         """(Abstract) Called when update has finished."""
-        print("FINISH_UPDATE")
+        statusMessage("FINISH_UPDATE")
 
     def error(self, pkg, errormsg):
         """(Abstract) Called when a error is detected during the install."""
-        print("ERROR_UPDATE", pkg, errormsg)
+        statusMessage("ERROR_UPDATE", pkg, errormsg)
 
     def status_change(self, pkg, percent, status):
         """(Abstract) Called when the APT status changed."""
-        print("STATUS_CHANGE", pkg, percent, status)
+        statusMessage("STATUS_CHANGE", pkg, percent, status)
 
     def processing(self, pkg, stage):
         """(Abstract) Sent just before a processing stage starts."""
-        print("PROCESSING", pkg, stage)
+        statusMessage("PROCESSING", pkg, stage)
 
 
 class ThreadedAPT(object):
@@ -245,6 +251,9 @@ class MainWin(StandardWindow):
         # build the two main boxes
         self.mainBox = self.buildMainBox()
         self.loadBox = self.buildLoadBox()
+        
+        # build the information details inwin object
+        self.buildDetailsWin()
 
         # the flip object has the load screen on one side and the GUI on the other
         self.flip = Flip(self, size_hint_weight=EXPAND_BOTH,
@@ -257,6 +266,33 @@ class MainWin(StandardWindow):
         # show the window
         self.show()
 
+    def buildDetailsWin(self):
+        self.updateText = Entry(self, size_hint_weight=EXPAND_BOTH, size_hint_align=FILL_BOTH)
+        self.updateText.editable_set(False)
+        self.updateText.scrollable_set(True)
+        self.updateText.show()
+
+        closebtn = Button(self)
+        closebtn.text_set("Done")
+        closebtn.callback_pressed_add(self.innerWinHide)
+        closebtn.show()
+
+        box = Box(self, size_hint_weight=EXPAND_BOTH, size_hint_align=FILL_BOTH)
+        box.pack_end(self.updateText)
+        box.pack_end(closebtn)
+        box.show()
+
+        self.innerWin = InnerWindow(self, size_hint_weight=EXPAND_BOTH,
+                          size_hint_align=FILL_HORIZ)
+        self.innerWin.content_set(box)
+
+    def innerWinShow(self, obj):
+        self.innerWin.show()
+        self.innerWin.activate()
+
+    def innerWinHide(self, obj=False):
+        self.innerWin.hide()
+
     def buildLoadBox(self):
         # build the load label
         loadLable = Label(self, size_hint_weight=EXPAND_BOTH,
@@ -265,11 +301,16 @@ class MainWin(StandardWindow):
         loadLable.show()
         
         # build the spinning wheel
-        wheel = Progressbar(self, style="wheel", pulse_mode=True,
+        wheel = Progressbar(self, pulse_mode=True,
                             size_hint_weight=EXPAND_BOTH,
                             size_hint_align=FILL_HORIZ)
         wheel.pulse(True)
         wheel.show()
+
+        detailsbtn = Button(self, style="anchor")
+        detailsbtn.text_set("Details")
+        detailsbtn.callback_pressed_add(self.innerWinShow)
+        detailsbtn.show()
 
         # build the status label
         self.statusLabel = Label(self, size_hint_weight=EXPAND_BOTH,
@@ -280,6 +321,7 @@ class MainWin(StandardWindow):
         box = Box(self, size_hint_weight=EXPAND_BOTH, size_hint_align=FILL_BOTH)
         box.pack_end(loadLable)
         box.pack_end(wheel)
+        box.pack_end(detailsbtn)
         box.pack_end(self.statusLabel)
         box.show()
 
@@ -401,7 +443,26 @@ class eepDater(object):
     def __init__(self):
         self.packagesToUpdate = {}
         self.apt = ThreadedAPT()
+
+        #Takes status updates from apt to populate the GUI
+        global progressque
+        progressque = []
+
+        self._timer = ecore.Timer(0.5, self.updateStatus)
+
         self.win = MainWin(self)
+
+    def updateStatus(self):
+        global progressque
+
+        if len(progressque) > 0:
+            for update in progressque:
+                self.win.updateText.entry_append("%s"%update)
+                self.win.updateText.entry_append("<br>")
+
+            progressque = []
+
+        return True
 
     def checkChange(self, obj):
         packageName = obj.data['packageName']
@@ -464,6 +525,7 @@ class eepDater(object):
         for pak in upgradables:
             self.win.addPackage(pak)
 
+        #self.win.innerWinHide()
         self.win.flip.go(ELM_FLIP_ROTATE_YZ_CENTER_AXIS)
 
 
