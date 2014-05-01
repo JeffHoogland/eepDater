@@ -236,7 +236,7 @@ class ThreadedAPT(object):
 class MainWin(StandardWindow):
     def __init__(self, app):
         # create the main window
-        StandardWindow.__init__(self, "eepDater", "eepDater - System Updater",
+        StandardWindow.__init__(self, "eepdater", "eepDater - System Updater",
                                 autodel=True, size=(320, 320))
         self.callback_delete_request_add(lambda o: elementary.exit())
         self.app = app
