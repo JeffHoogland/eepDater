@@ -244,7 +244,7 @@ class MainWin(StandardWindow):
         icon = Icon(self)
         icon.size_hint_weight_set(EVAS_HINT_EXPAND, EVAS_HINT_EXPAND)
         icon.size_hint_align_set(EVAS_HINT_FILL, EVAS_HINT_FILL)
-        icon.standard_set('software-center')
+        icon.standard_set('update-manager')
         icon.show()
         self.icon_object_set(icon.object_get())
 
@@ -333,10 +333,10 @@ class MainWin(StandardWindow):
                               size_hint_weight=(0.0, 0.0),
                               size_hint_align=(EVAS_HINT_FILL, 0.0))
         self.mainTb.item_append("remove", "Clear", self.clearPressed)
-        self.mainTb.item_append("system-run", "Select All", self.selectAllPressed)
+        self.mainTb.item_append("add", "Select All", self.selectAllPressed)
         self.mainTb.item_append("view-refresh", "Refresh", self.refreshPressed)
         self.mainTb.item_append("info", "Log", self.detailsPressed)
-        self.mainTb.item_append("ok", "Apply", self.installUpdatesPressed)
+        self.mainTb.item_append("system-upgrade", "Apply", self.installUpdatesPressed)
         self.mainTb.show()
 
         # build our sortable list that displays packages that need updates
