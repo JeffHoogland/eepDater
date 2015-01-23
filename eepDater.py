@@ -17,6 +17,7 @@ from efl.elementary.check import Check
 from efl.elementary.progressbar import Progressbar
 from efl.elementary.popup import Popup
 from efl.elementary.icon import Icon
+from efl.elementary.image import Image
 from efl.elementary.innerwindow import InnerWindow
 from efl.elementary.entry import Entry, ELM_TEXT_FORMAT_PLAIN_UTF8
 from efl.elementary.flip import Flip, ELM_FLIP_ROTATE_X_CENTER_AXIS, \
@@ -37,6 +38,7 @@ from apt.progress.base import AcquireProgress as BaseAcquireProgress
 from apt.progress.base import InstallProgress as BaseInstallProgress
 import threading
 import Queue
+import os
 
 EXPAND_BOTH = EVAS_HINT_EXPAND, EVAS_HINT_EXPAND
 EXPAND_HORIZ = EVAS_HINT_EXPAND, 0.0
@@ -328,21 +330,21 @@ class MainWin(StandardWindow):
         return box
 
     def buildMainBox(self):
+        location = os.path.dirname(os.path.abspath(__file__))
+        self.updatedImage = Image(self, size_hint_weight=EXPAND_BOTH,
+                              size_hint_align=FILL_BOTH)
+        self.updatedImage.file_set("%s/images/updated.jpg"%location)
+        
         # build our toolbar
         self.mainTb = Toolbar(self, homogeneous=False,
                               size_hint_weight=(0.0, 0.0),
                               size_hint_align=(EVAS_HINT_FILL, 0.0))
-        self.mainTb.item_append("remove", "Clear", self.clearPressed)
-        self.mainTb.item_append("add", "Select All", self.selectAllPressed)
-        self.mainTb.item_append("view-refresh", "Refresh", self.refreshPressed)
-        self.mainTb.item_append("info", "Log", self.detailsPressed)
-        self.mainTb.item_append("system-upgrade", "Apply", self.installUpdatesPressed)
-        self.mainTb.show()
+        self.buildToolbar()
 
         # build our sortable list that displays packages that need updates
         titles = [("Upgrade", True), ("Package", True),
                   ("Installed", True), ("Available", True)]
-        scr = Scroller(self, size_hint_weight=EXPAND_BOTH,
+        self.scr = scr = Scroller(self, size_hint_weight=EXPAND_BOTH,
                        size_hint_align=FILL_BOTH)
         self.packageList = sl.SortedList(scr, titles=titles, homogeneous=False,
                                          size_hint_weight=EXPAND_HORIZ)
@@ -367,10 +369,24 @@ class MainWin(StandardWindow):
                            size_hint_align=FILL_BOTH)
         box.pack_end(self.mainTb)
         box.pack_end(scr)
+        box.pack_end(self.updatedImage)
         box.pack_end(self.desFrame)
         box.show()
 
         return box
+    
+    def buildToolbar(self, allClear=False):
+        #self.mainTb.delete()
+        while self.mainTb.first_item_get() is not None:
+            self.mainTb.first_item_get().delete()
+        if not allClear:
+            self.mainTb.item_append("remove", "Clear", self.clearPressed)
+            self.mainTb.item_append("add", "Select All", self.selectAllPressed)
+        self.mainTb.item_append("view-refresh", "Refresh", self.refreshPressed)
+        self.mainTb.item_append("info", "Log", self.detailsPressed)
+        if not allClear:
+            self.mainTb.item_append("system-upgrade", "Apply", self.installUpdatesPressed)
+        self.mainTb.show()
 
     def detailsPressed(self, obj, it):
         it.selected = False
@@ -442,6 +458,26 @@ class MainWin(StandardWindow):
         dia.part_content_set("button1", bt)
 
         dia.show()
+    
+    def updatesPending(self):
+        self.scr.show()
+        self.scr.size_hint_weight = EXPAND_BOTH
+        self.scr.size_hint_align = FILL_BOTH
+        self.updatedImage.hide()
+        self.updatedImage.size_hint_weight = (0, 0)
+        self.updatedImage.size_hint_align = (0, 0)
+        self.buildToolbar()
+        
+    def fullyUpdated(self):
+        self.scr.hide()
+        self.scr.size_hint_weight = (0, 0)
+        self.scr.size_hint_align = (0, 0)
+        self.updatedImage.show()
+        self.updatedImage.size_hint_weight = EXPAND_BOTH
+        self.updatedImage.size_hint_align = FILL_BOTH
+        self.buildToolbar(True)
+        self.desFrame.text = "Fully Updated"
+        self.currentDescription.text = "Your system is fully up to date!"
 
 
 class eepDater(object):
@@ -527,8 +563,12 @@ class eepDater(object):
             self.win.packageList.row_unpack(row, True)
 
         # populate the packages list
-        for pak in upgradables:
-            self.win.addPackage(pak)
+        if len(upgradables):
+            self.win.updatesPending()
+            for pak in upgradables:
+                self.win.addPackage(pak)
+        else:
+            self.win.fullyUpdated()
 
         #self.win.innerWinHide()
         self.win.flip.go(ELM_FLIP_ROTATE_YZ_CENTER_AXIS)
