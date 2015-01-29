@@ -305,7 +305,7 @@ class eepDater(object):
         packageList = ""
         for pkg in self.packagesToUpdate:
             packageList = "%s %s"%(packageList, pkg)
-        self.win.updateTerm.runCommand("apt-get install%s"%packageList, self.installUpdatesDone)
+        self.win.updateTerm.runCommand("apt-get -y install%s"%packageList, self.installUpdatesDone)
 
     def installUpdatesDone(self):
         del self.packagesToUpdate[:]
