@@ -231,7 +231,7 @@ class MainWin(StandardWindow):
     def addPackage(self, pak):
         row = []
 
-        ourCheck = Check(self)
+        ourCheck = Check(self, size_hint_weight=(1, EVAS_HINT_EXPAND))
         ourCheck.data['packageName'] = pak.name
         ourCheck.callback_changed_add(self.app.checkChange)
         ourCheck.show()
