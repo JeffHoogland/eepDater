@@ -7,7 +7,9 @@ from efl.evas import EVAS_HINT_EXPAND, EVAS_HINT_FILL
 from efl import elementary
 from efl.elementary.window import StandardWindow
 from efl.elementary.box import Box
+from efl.elementary.separator import Separator
 from efl.elementary.button import Button
+from efl.elementary.entry import Entry
 from efl.elementary.toolbar import Toolbar, ELM_TOOLBAR_SHRINK_MENU, \
     ELM_OBJECT_SELECT_MODE_NONE
 from efl.elementary.frame import Frame
@@ -50,7 +52,7 @@ class MainWin(StandardWindow):
     def __init__(self, app):
         # create the main window
         StandardWindow.__init__(self, "eepdater", "eepDater - System Updater",
-                                autodel=True, size=(320, 400))
+                                autodel=True, size=(600, 400))
         self.callback_delete_request_add(lambda o: elementary.exit())
         self.app = app
 
@@ -152,8 +154,8 @@ class MainWin(StandardWindow):
         self.buildToolbar()
 
         # build our sortable list that displays packages that need updates
-        titles = [("Upgrade", True), ("Package", True),
-                  ("Installed", True), ("Available", True)]
+        titles = [("Upgrade", True, 1), ("Package", True, 2),
+                  ("Installed", True, 3), ("Available", True, 3)]
 
         self.packageList = SortedList(self, titles=titles, homogeneous=False,
                                          size_hint_weight=EXPAND_HORIZ)
@@ -231,27 +233,33 @@ class MainWin(StandardWindow):
     def addPackage(self, pak):
         row = []
 
-        ourCheck = Check(self, size_hint_weight=(1, EVAS_HINT_EXPAND))
+        ourCheck = Check(self, size_hint_weight=EXPAND_BOTH,
+                                        size_hint_align=ALIGN_CENTER)
         ourCheck.data['packageName'] = pak.name
         ourCheck.callback_changed_add(self.app.checkChange)
         ourCheck.show()
         row.append(ourCheck)
-
+        
         ourName = Button(self, style="anchor", size_hint_weight=(1, EVAS_HINT_EXPAND))
         ourName.text = pak.name
         ourName.data["packageDes"] = pak.candidate.description
         ourName.callback_pressed_add(self.packagePressed)
         ourName.show()
+        
         row.append(ourName)
 
-        ourVersion = Label(self, size_hint_weight=(1, EVAS_HINT_EXPAND))
+        ourVersion = Label(self, size_hint_weight=EXPAND_BOTH,
+                                        size_hint_align=FILL_BOTH)
         ourVersion.text = pak.installed.version
         ourVersion.show()
+    
         row.append(ourVersion)
 
-        newVersion = Label(self, size_hint_weight=(1, EVAS_HINT_EXPAND))
+        newVersion = Label(self, size_hint_weight=EXPAND_BOTH,
+                                        size_hint_align=FILL_BOTH)
         newVersion.text = pak.candidate.version
         newVersion.show()
+        
         row.append(newVersion)
 
         self.packageList.row_pack(row, sort=False)
