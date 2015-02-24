@@ -1,3 +1,6 @@
+#!/usr/bin/python
+# encoding: utf-8
+
 #eepDater - an GUI system updater for apt-get powered systems written in python and elementary
 #
 #Written by: Jeff Hoogland
@@ -142,9 +145,9 @@ class MainWin(StandardWindow):
 
     def buildMainBox(self):
         location = os.path.dirname(os.path.abspath(__file__))
-        self.updatedImage = Image(self, size_hint_weight=EXPAND_BOTH,
+        self.updatedImage = Icon(self, size_hint_weight=EXPAND_BOTH,
                               size_hint_align=FILL_BOTH)
-        self.updatedImage.file_set("%s/images/updated.jpg"%location)
+        self.updatedImage.standard_set("dialog-ok")
         self.updatedImage.show()
         
         # build our toolbar
