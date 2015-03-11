@@ -157,8 +157,8 @@ class MainWin(StandardWindow):
         self.buildToolbar()
 
         # build our sortable list that displays packages that need updates
-        titles = [("Upgrade", True, 1), ("Package", True, 2),
-                  ("Installed", True, 3), ("Available", True, 3)]
+        titles = [("Upgrade", True), ("Package", True),
+                  ("Installed", True), ("Available", True)]
 
         self.packageList = SortedList(self, titles=titles, homogeneous=False,
                                          size_hint_weight=EXPAND_HORIZ)
