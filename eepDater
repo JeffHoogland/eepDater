@@ -54,7 +54,7 @@ ALIGN_CENTER = 0.5, 0.5
 class MainWin(StandardWindow):
     def __init__(self, app):
         # create the main window
-        StandardWindow.__init__(self, "eepdater", "eepDater - System Updater",
+        StandardWindow.__init__(self, "eepDater", "eepDater - System Updater",
                                 autodel=True, size=(600, 400))
         self.callback_delete_request_add(lambda o: elementary.exit())
         self.app = app
