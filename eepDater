@@ -317,9 +317,9 @@ class eepDater(object):
         for pkg in self.packagesToUpdate:
             packageList = "%s %s"%(packageList, pkg)
         #Adding running the command in the default xterm to work around ncurses bugs
-        #Ecore hates commands with && so putting it in a script we pass the package list to as a work around for now
-        #ourCommand = "terminology -H -e 'sudo apt-get -y install%s && echo Updates complete! Please close this window to continue.'"%packageList, self.installUpdatesDone
-        ourCommand = "./eepDaterUpdateScript%s"%packageList
+        ourCommand = "terminology -H -e 'sudo apt-get -y install%s'"%packageList, self.installUpdatesDone
+        #this hack doesn't work meh
+        #ourCommand = "./eepDaterUpdateScript%s"%packageList
         self.win.updateTerm.runCommand(ourCommand)
 
     def installUpdatesDone(self):
