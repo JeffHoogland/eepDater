@@ -1,0 +1,2 @@
+#!/bin/bash
+terminology -H -e 'sudo apt-get update && echo Updates complete! Please close this window to continue.'

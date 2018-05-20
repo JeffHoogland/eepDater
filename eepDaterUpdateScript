@@ -1,0 +1,11 @@
+#!/bin/bash
+echo $@
+
+command1="sudo apt-get -y install "
+command2=" && echo Updates complete! Please close this window to continue."
+
+fullcommand="$command1$@$command2"
+
+echo $fullcommand
+
+terminology -H -e $fullcommand
